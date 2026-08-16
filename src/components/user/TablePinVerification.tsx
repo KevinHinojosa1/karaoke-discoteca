@@ -125,7 +125,7 @@ export const TablePinVerification: React.FC<TablePinVerificationProps> = ({
           Verificación de Mesa
         </h3>
         <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto leading-relaxed">
-          Ingresa el <strong>PIN de 4 dígitos</strong> impreso en el atril de tu mesa o en el ticket del bar para autorizar este celular.
+          Ingresa el <strong>PIN de 4 dígitos</strong> del atril de tu mesa o ticket del bar para vincular este celular (máximo <strong>3 celulares</strong> por mesa).
         </p>
 
         {/* Error Feedback */}

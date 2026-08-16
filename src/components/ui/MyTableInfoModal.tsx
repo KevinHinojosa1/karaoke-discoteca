@@ -7,6 +7,8 @@ import {
   Copy,
   Check,
   X,
+  Smartphone,
+  LogOut,
 } from 'lucide-react';
 import { useKaraoke } from '../../context/KaraokeContext';
 import { LiquidGlassCard } from './LiquidGlassCard';
@@ -23,7 +25,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentTable, isTableAuthenticated } = useKaraoke();
+  const { currentTable, isTableAuthenticated, disconnectCurrentDevice } = useKaraoke();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !currentTable) return null;
@@ -31,6 +33,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
   const config = TIER_CONFIGS[currentTable.tier];
   const totalQuota = config.maxSongs + currentTable.extraQuotaBonus;
   const remaining = Math.max(0, totalQuota - currentTable.quotaUsed);
+  const connectedCount = (currentTable.authorizedDevices || []).length;
 
   const origin = window.location.origin + window.location.pathname;
   const inviteUrl = signTableUrl(origin, currentTable.id, currentTable.sessionToken);
@@ -39,6 +42,13 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleDisconnect = () => {
+    if (window.confirm('¿Deseas desvincular tu celular de esta mesa?')) {
+      disconnectCurrentDevice(currentTable.id);
+      onClose();
+    }
   };
 
   return (
@@ -66,7 +76,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 font-mono">
-                Mesa vinculada a tu dispositivo
+                {isTableAuthenticated ? 'Celular vinculado con éxito' : 'Mesa en espera de PIN'}
               </p>
             </div>
           </div>
@@ -90,6 +100,17 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
               <strong className="text-sm font-black text-emerald-400 font-mono">
                 ${currentTable.totalSpend}
               </strong>
+            </div>
+
+            {/* Connected Devices (Max 3) */}
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+              <span className="text-xs text-slate-300 flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-pastel-sky" />
+                Celulares Conectados:
+              </span>
+              <span className="text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded-md font-mono">
+                {connectedCount} / 3 <span className="text-[10px] text-slate-400 font-sans font-normal">(máx 3)</span>
+              </span>
             </div>
 
             {/* Song Quota */}
@@ -123,7 +144,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">
-                Pasa este enlace a tus acompañantes para que pidan canciones desde sus celulares:
+                Pasa este enlace a tus acompañantes para que conecten hasta 3 dispositivos a la mesa:
               </p>
               <button
                 onClick={handleCopyLink}
@@ -135,10 +156,20 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
             </div>
           )}
 
-          {/* Close */}
-          <div className="mt-4 pt-3 border-t border-white/10">
+          {/* Disconnect or Close */}
+          <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+            {isTableAuthenticated && (
+              <button
+                onClick={handleDisconnect}
+                className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all tap-squish"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Desvincular mi celular de esta mesa</span>
+              </button>
+            )}
+
             <LiquidButton variant="secondary" size="md" fullWidth onClick={onClose}>
-              Entendido
+              Cerrar
             </LiquidButton>
           </div>
         </LiquidGlassCard>

@@ -275,9 +275,14 @@ export const TableManager: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-pastel-lavender flex-shrink-0" />
                     <div>
-                      <span className="text-[10px] text-slate-400 block">PIN Seguridad:</span>
-                      <span className="font-mono font-bold text-white tracking-widest text-xs sm:text-sm">
-                        {isPinRevealed ? table.pin : '••••'}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-400">PIN:</span>
+                        <span className="font-mono font-bold text-white tracking-wider text-xs">
+                          {isPinRevealed ? table.pin : '••••'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-pastel-sky block mt-0.5">
+                        📱 {(table.authorizedDevices || []).length} / 3 celulares activos
                       </span>
                     </div>
                   </div>

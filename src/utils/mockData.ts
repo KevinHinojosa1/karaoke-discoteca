@@ -14,6 +14,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_vip01_auth8f9a',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'VIP-02': {
@@ -29,6 +30,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_vip02_auth3c2d',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'VIP-03': {
@@ -44,6 +46,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_vip03_auth7a1e',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-01': {
@@ -59,6 +62,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m01_auth6f4b',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-02': {
@@ -74,6 +78,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m02_auth9d5c',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [
       {
         id: 'rw-1',
@@ -97,6 +102,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m03_auth2e8a',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-04': {
@@ -112,6 +118,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m04_auth5b7f',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-05': {
@@ -127,6 +134,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m05_auth1c9d',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-06': {
@@ -142,6 +150,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m06_auth4f2a',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-07': {
@@ -157,6 +166,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m07_auth8a3e',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
   'M-08': {
@@ -172,6 +182,7 @@ export const INITIAL_TABLES: Record<string, Table> = {
     sessionToken: 'tk_m08_auth7d1b',
     sessionCreatedAt: Date.now() - 1000 * 60 * 120,
     isLocked: false,
+    authorizedDevices: [],
     rewardsWon: [],
   },
 };
@@ -263,7 +274,7 @@ export const INITIAL_PRIZES: RoulettePrize[] = [
     type: 'time_reduction',
     value: 10,
     weight: 35,
-    color: '#D3F8E2', // Menta
+    color: '#D3F8E2',
     icon: 'Zap',
     active: true,
   },
@@ -274,7 +285,7 @@ export const INITIAL_PRIZES: RoulettePrize[] = [
     type: 'extra_song',
     value: 1,
     weight: 15,
-    color: '#E4D9FF', // Lavanda
+    color: '#E4D9FF',
     icon: 'Sparkles',
     active: true,
   },
@@ -285,7 +296,7 @@ export const INITIAL_PRIZES: RoulettePrize[] = [
     type: 'drink_discount',
     value: 15,
     weight: 25,
-    color: '#FFD6E8', // Rosa
+    color: '#FFD6E8',
     icon: 'GlassWater',
     active: true,
   },
@@ -296,7 +307,7 @@ export const INITIAL_PRIZES: RoulettePrize[] = [
     type: 'drink_discount',
     value: 20,
     weight: 10,
-    color: '#D6EFFF', // Celeste
+    color: '#D6EFFF',
     icon: 'Gift',
     active: true,
   },
@@ -307,13 +318,13 @@ export const INITIAL_PRIZES: RoulettePrize[] = [
     type: 'no_prize',
     value: 0,
     weight: 15,
-    color: '#FFF3C4', // Amarillo pastel
+    color: '#FFF3C4',
     icon: 'Smile',
     active: true,
   },
 ];
 
-export const POPULAR_KARAOKE_CATALOG = [
+export const POPULAR_KARAOKE_SONGS = [
   { title: 'De Música Ligera', artist: 'Soda Stereo', genre: 'Rock en Español' },
   { title: 'Provenza', artist: 'Karol G', genre: 'Urbano / Reggaeton' },
   { title: 'La Bachata', artist: 'Manuel Turizo', genre: 'Bachata' },
@@ -333,3 +344,5 @@ export const POPULAR_KARAOKE_CATALOG = [
   { title: 'Hawái', artist: 'Maluma', genre: 'Reggaeton' },
   { title: 'Vivir Mi Vida', artist: 'Marc Anthony', genre: 'Salsa' },
 ];
+
+export const POPULAR_KARAOKE_CATALOG = POPULAR_KARAOKE_SONGS;

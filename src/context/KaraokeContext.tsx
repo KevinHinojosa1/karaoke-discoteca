@@ -17,7 +17,9 @@ import {
 import { sortQueueByPriority, syncQueueWithTableTiers, TIER_CONFIGS } from '../utils/queueAlgorithm';
 import { soundManager } from '../utils/audio';
 import { sendBrowserNotification } from '../utils/pushNotifications';
-import { generateSessionToken, generateTablePin } from '../utils/security';
+import { generateSessionToken, generateTablePin, getOrCreateDeviceId } from '../utils/security';
+
+const MAX_DEVICES_PER_TABLE = 3;
 
 interface KaraokeContextType {
   state: KaraokeState;
@@ -30,28 +32,15 @@ interface KaraokeContextType {
   setIsAdminAuthenticated: (auth: boolean) => void;
   showAdminLoginModal: boolean;
   setShowAdminLoginModal: (show: boolean) => void;
-  
-  // Security & Authentication Actions
   currentDeviceAuth: TableDeviceAuth | undefined;
   isTableAuthenticated: boolean;
-  unlockTableWithPin: (
-    tableId: string,
-    pin: string,
-    isHost?: boolean
-  ) => { success: boolean; error?: string };
+  unlockTableWithPin: (tableId: string, pin: string, isHost?: boolean) => { success: boolean; error?: string };
+  disconnectCurrentDevice: (tableId: string) => void;
   lockTableSession: (tableId: string) => void;
   regenerateTableSession: (tableId: string) => { newPin: string; newToken: string };
   regenerateAllSessions: () => void;
   toggleTableLock: (tableId: string) => void;
-
-  // Actions
-  requestSong: (
-    tableId: string,
-    title: string,
-    artist: string,
-    notes?: string
-  ) => { success: boolean; error?: string; song?: SongRequest; eligibleForRoulette?: boolean };
-  
+  requestSong: (tableId: string, title: string, artist: string, notes?: string) => { success: boolean; error?: string; song?: SongRequest; eligibleForRoulette?: boolean };
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
   startSong: (songId: string) => void;
   completeCurrentSong: () => void;
@@ -64,7 +53,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v3';
+const STORAGE_KEY = 'karaoke_discoteca_state_v5';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -76,16 +65,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const initialAuthToken = urlParams.get('auth');
 
   const [state, setState] = useState<KaraokeState>(() => {
-    // Check initial device auth from storage
-    let initialAuths: Record<string, TableDeviceAuth> = {
-      // By default M-04 is pre-authenticated for seamless demo testing if desired
-      'M-04': {
-        isUnlocked: true,
-        isHost: true,
-        unlockedAt: Date.now(),
-        token: 'tk_m04_auth5b7f',
-      },
-    };
+    // NO table is pre-authenticated by default! Every table requires PIN or valid QR token
+    const initialAuths: Record<string, TableDeviceAuth> = {};
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -146,31 +127,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Check URL Token Authentication on Mount
-  useEffect(() => {
-    if (initialAuthToken && state.tables[initialTableParam]) {
-      const targetTable = state.tables[initialTableParam];
-      if (targetTable.sessionToken === initialAuthToken) {
-        // Valid token from secure QR scan! Auto-unlock this table for this device
-        setState((prev) => {
-          const updatedAuths = {
-            ...prev.deviceAuthorizations,
-            [initialTableParam]: {
-              isUnlocked: true,
-              isHost: true,
-              unlockedAt: Date.now(),
-              token: initialAuthToken,
-            },
-          };
-          return {
-            ...prev,
-            deviceAuthorizations: updatedAuths,
-          };
-        });
-      }
-    }
-  }, [initialAuthToken, initialTableParam]);
-
   // Save to localStorage and broadcast whenever state changes
   const updateStateAndBroadcast = useCallback((updater: (prev: KaraokeState) => KaraokeState) => {
     setState((prev) => {
@@ -187,16 +143,57 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [channel]);
 
+  // Check URL Token Authentication on Mount with max 3 devices check
+  useEffect(() => {
+    if (initialAuthToken && state.tables[initialTableParam]) {
+      const targetTable = state.tables[initialTableParam];
+      const deviceId = getOrCreateDeviceId();
+
+      if (targetTable.sessionToken === initialAuthToken && !targetTable.isLocked) {
+        const authorizedList = targetTable.authorizedDevices || [];
+        const isAlreadyAuth = authorizedList.includes(deviceId);
+
+        if (isAlreadyAuth || authorizedList.length < MAX_DEVICES_PER_TABLE) {
+          const updatedDevices = isAlreadyAuth ? authorizedList : [...authorizedList, deviceId];
+
+          updateStateAndBroadcast((prev) => {
+            const table = prev.tables[initialTableParam];
+            if (!table) return prev;
+
+            const updatedTable = { ...table, authorizedDevices: updatedDevices };
+            const updatedAuths = {
+              ...prev.deviceAuthorizations,
+              [initialTableParam]: {
+                isUnlocked: true,
+                isHost: true,
+                unlockedAt: Date.now(),
+                token: initialAuthToken,
+              },
+            };
+
+            return {
+              ...prev,
+              tables: { ...prev.tables, [initialTableParam]: updatedTable },
+              deviceAuthorizations: updatedAuths,
+            };
+          });
+        }
+      }
+    }
+  }, [initialAuthToken, initialTableParam, updateStateAndBroadcast]);
+
   const activeTableId = state.currentTableId;
   const currentTable = state.tables[activeTableId];
+  const deviceId = getOrCreateDeviceId();
 
-  // Device Authentication State for current table
+  // Device Authentication State for current table (requires token match & active device auth)
   const currentDeviceAuth = state.deviceAuthorizations?.[activeTableId];
   const isTableAuthenticated = Boolean(
     currentDeviceAuth?.isUnlocked &&
     currentTable &&
     !currentTable.isLocked &&
-    currentDeviceAuth.token === currentTable.sessionToken
+    currentDeviceAuth.token === currentTable.sessionToken &&
+    (currentTable.authorizedDevices || []).includes(deviceId)
   );
 
   const setActiveTableId = useCallback((tableId: string) => {
@@ -213,7 +210,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
-  // Unlock Table with 4-digit PIN
+  // Unlock Table with 4-digit PIN (With Max 3 Devices Enforcement)
   const unlockTableWithPin = useCallback((
     tableId: string,
     pin: string,
@@ -236,48 +233,87 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }
 
+    const devId = getOrCreateDeviceId();
+    const currentDevices = table.authorizedDevices || [];
+    const isAlreadyConnected = currentDevices.includes(devId);
+
+    // Enforce Max 3 Devices per table
+    if (!isAlreadyConnected && currentDevices.length >= MAX_DEVICES_PER_TABLE) {
+      soundManager.playTap();
+      return {
+        success: false,
+        error: `⚠️ Límite alcanzado: Máximo ${MAX_DEVICES_PER_TABLE} celulares pueden estar conectados a esta mesa a la vez. Pide a un acompañante desconectarse o solicita al DJ reiniciar la sesión.`,
+      };
+    }
+
+    const updatedDevices = isAlreadyConnected ? currentDevices : [...currentDevices, devId];
+
     // Success! Authorize device
     soundManager.playVictoryFanfare();
 
-    setState((prev) => {
+    updateStateAndBroadcast((prev) => {
+      const target = prev.tables[tableId];
+      if (!target) return prev;
+
+      const updatedTable = {
+        ...target,
+        authorizedDevices: updatedDevices,
+      };
+
       const newAuths = {
         ...prev.deviceAuthorizations,
         [tableId]: {
           isUnlocked: true,
           isHost,
           unlockedAt: Date.now(),
-          token: table.sessionToken,
+          token: target.sessionToken,
         },
       };
 
-      const updated = {
+      return {
         ...prev,
+        tables: { ...prev.tables, [tableId]: updatedTable },
         deviceAuthorizations: newAuths,
       };
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch {}
-
-      return updated;
     });
 
     return { success: true };
-  }, [state.tables]);
+  }, [state.tables, updateStateAndBroadcast]);
 
-  // Lock / Relinquish Table session from client
-  const lockTableSession = useCallback((tableId: string) => {
-    setState((prev) => {
+  // Disconnect Current Device from table
+  const disconnectCurrentDevice = useCallback((tableId: string) => {
+    const devId = getOrCreateDeviceId();
+    updateStateAndBroadcast((prev) => {
+      const table = prev.tables[tableId];
       const newAuths = { ...prev.deviceAuthorizations };
       delete newAuths[tableId];
+
+      if (!table) return { ...prev, deviceAuthorizations: newAuths };
+
+      const updatedDevices = (table.authorizedDevices || []).filter((d) => d !== devId);
+      const updatedTable = { ...table, authorizedDevices: updatedDevices };
+
       return {
         ...prev,
+        tables: { ...prev.tables, [tableId]: updatedTable },
         deviceAuthorizations: newAuths,
       };
     });
-  }, []);
+  }, [updateStateAndBroadcast]);
 
-  // DJ Panic Button: Regenerate Table PIN & Session Token (Expels all connected phones!)
+  // Lock or Reset specific Table session (DJ Action)
+  const lockTableSession = useCallback((tableId: string) => {
+    updateStateAndBroadcast((prev) => {
+      const updatedAuths = { ...prev.deviceAuthorizations };
+      delete updatedAuths[tableId];
+      return {
+        ...prev,
+        deviceAuthorizations: updatedAuths,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
+  // Regenerate Table PIN & Clear all connected devices (DJ Action)
   const regenerateTableSession = useCallback((tableId: string) => {
     const newPin = generateTablePin();
     const newToken = generateSessionToken(tableId, newPin);
@@ -292,51 +328,49 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sessionToken: newToken,
         sessionCreatedAt: Date.now(),
         isLocked: false,
+        authorizedDevices: [], // Wipes all connected phones!
       };
 
-      // Clear local auth if we were on this table
-      const newAuths = { ...prev.deviceAuthorizations };
-      delete newAuths[tableId];
+      const updatedAuths = { ...prev.deviceAuthorizations };
+      delete updatedAuths[tableId];
 
       return {
         ...prev,
-        tables: {
-          ...prev.tables,
-          [tableId]: updatedTable,
-        },
-        deviceAuthorizations: newAuths,
+        tables: { ...prev.tables, [tableId]: updatedTable },
+        deviceAuthorizations: updatedAuths,
       };
     });
 
     return { newPin, newToken };
   }, [updateStateAndBroadcast]);
 
-  // DJ Global Action: Rotate all table tokens for the night
+  // Rotate ALL Tables for New Night (DJ Action)
   const regenerateAllSessions = useCallback(() => {
     updateStateAndBroadcast((prev) => {
       const newTables: Record<string, Table> = {};
 
-      Object.entries(prev.tables).forEach(([id, t]) => {
-        const newPin = generateTablePin();
-        const newToken = generateSessionToken(id, newPin);
+      Object.entries(prev.tables).forEach(([id, table]) => {
+        const pin = generateTablePin();
+        const token = generateSessionToken(id, pin);
         newTables[id] = {
-          ...t,
-          pin: newPin,
-          sessionToken: newToken,
+          ...table,
+          pin,
+          sessionToken: token,
           sessionCreatedAt: Date.now(),
           isLocked: false,
+          authorizedDevices: [],
         };
       });
 
       return {
         ...prev,
         tables: newTables,
-        deviceAuthorizations: {}, // Clear all device auths club-wide
+        deviceAuthorizations: {},
       };
     });
   }, [updateStateAndBroadcast]);
 
-  // Toggle Table Lock (DJ freeze table)
+  // Toggle Table Lock (DJ Action)
   const toggleTableLock = useCallback((tableId: string) => {
     updateStateAndBroadcast((prev) => {
       const table = prev.tables[tableId];
@@ -355,8 +389,13 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [updateStateAndBroadcast]);
 
-  // Check turn notifications for users
-  const notifyTurnStatus = useCallback((tableId: string, type: 'turn_soon' | 'now_playing' | 'tier_upgraded' | 'roulette_win' | 'info', title: string, message: string) => {
+  // Trigger Local + Web Push Notification
+  const triggerNotification = useCallback((
+    tableId: string,
+    type: AppNotification['type'],
+    title: string,
+    message: string
+  ) => {
     soundManager.playNotificationChime();
     sendBrowserNotification(title, { body: message });
 
@@ -376,13 +415,13 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [updateStateAndBroadcast]);
 
-  // Request a Song
+  // Request a Song from a Table
   const requestSong = useCallback((
     tableId: string,
     title: string,
     artist: string,
     notes?: string
-  ) => {
+  ): { success: boolean; error?: string; song?: SongRequest; eligibleForRoulette?: boolean } => {
     const table = state.tables[tableId];
     if (!table) {
       return { success: false, error: 'Mesa no encontrada' };
@@ -393,17 +432,15 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     const tierConfig = TIER_CONFIGS[table.tier];
-    const totalAllowed = tierConfig.maxSongs + table.extraQuotaBonus;
+    const maxAllowed = tierConfig.maxSongs + table.extraQuotaBonus;
 
-    // Check remaining quota
-    if (table.quotaUsed >= totalAllowed) {
+    if (table.quotaUsed >= maxAllowed) {
       return {
         success: false,
-        error: `Has alcanzado el límite máximo de ${totalAllowed} canciones para tu categoría. Consulta con un mesero para aumentar tu consumo.`,
+        error: `Has alcanzado el límite máximo de ${maxAllowed} canciones para tu categoría. Consulta con un mesero para aumentar tu consumo.`,
       };
     }
 
-    // Check Cooldown timer for standard tier
     if (table.tier === 'standard' && table.cooldownUntil && table.cooldownUntil > Date.now()) {
       const remainingMinutes = Math.ceil((table.cooldownUntil - Date.now()) / (1000 * 60));
       return {
@@ -425,9 +462,12 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: Date.now(),
     };
 
-    // Calculate new cooldown if standard
-    const cooldownMs = table.tier === 'standard' ? (table.customCooldownMinutes || state.cooldownDefaultMinutes) * 60 * 1000 : 0;
-    const newCooldownUntil = cooldownMs > 0 ? Date.now() + cooldownMs : null;
+    const cooldownDuration =
+      table.tier === 'standard'
+        ? (table.customCooldownMinutes || state.cooldownDefaultMinutes) * 60 * 1000
+        : 0;
+
+    const newCooldownUntil = cooldownDuration > 0 ? Date.now() + cooldownDuration : null;
 
     updateStateAndBroadcast((prev) => {
       const updatedTable: Table = {
@@ -450,33 +490,41 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     soundManager.playTap();
-
-    // Standard tables are eligible for rewards roulette upon requesting
-    const eligibleForRoulette = table.tier === 'standard';
+    const isStandard = table.tier === 'standard';
 
     return {
       success: true,
       song: newSong,
-      eligibleForRoulette,
+      eligibleForRoulette: isStandard,
     };
   }, [state.tables, state.cooldownDefaultMinutes, updateStateAndBroadcast]);
 
-  // Set / Upgrade Table Tier
-  const setTableTier = useCallback((tableId: string, tier: ConsumptionTier, totalSpend?: number) => {
+  // Set Table Tier / Spend (DJ action)
+  const setTableTier = useCallback((
+    tableId: string,
+    tier: ConsumptionTier,
+    totalSpend?: number
+  ) => {
     updateStateAndBroadcast((prev) => {
-      const existing = prev.tables[tableId];
-      if (!existing) return prev;
+      const table = prev.tables[tableId];
+      if (!table) return prev;
 
-      const newSpend = totalSpend !== undefined ? totalSpend : tier === 'vip_100' ? Math.max(100, existing.totalSpend) : tier === 'medium_50' ? Math.max(50, existing.totalSpend) : existing.totalSpend;
+      const newSpend =
+        totalSpend !== undefined
+          ? totalSpend
+          : tier === 'vip_100'
+          ? Math.max(100, table.totalSpend)
+          : tier === 'medium_50'
+          ? Math.max(50, table.totalSpend)
+          : table.totalSpend;
 
-      // Clear cooldown if upgraded to VIP or Medium
-      const newCooldownUntil = (tier === 'vip_100' || tier === 'medium_50') ? null : existing.cooldownUntil;
+      const newCooldown = tier === 'vip_100' || tier === 'medium_50' ? null : table.cooldownUntil;
 
       const updatedTable: Table = {
-        ...existing,
+        ...table,
         tier,
         totalSpend: newSpend,
-        cooldownUntil: newCooldownUntil,
+        cooldownUntil: newCooldown,
       };
 
       const updatedTables = {
@@ -484,38 +532,37 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [tableId]: updatedTable,
       };
 
-      // Recalculate table tiers map and re-sort queue
       const tableTiersMap = Object.fromEntries(
         Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
       );
 
-      const updatedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
 
       return {
         ...prev,
         tables: updatedTables,
-        queue: updatedQueue,
+        queue: recomputedQueue,
       };
     });
 
-    notifyTurnStatus(
+    triggerNotification(
       tableId,
       'tier_upgraded',
       '¡Categoría de Mesa Actualizada!',
       `Tu mesa ha sido asignada como ${TIER_CONFIGS[tier].label}. ¡Tus canciones han subido en prioridad!`
     );
-  }, [updateStateAndBroadcast, notifyTurnStatus]);
+  }, [updateStateAndBroadcast, triggerNotification]);
 
-  // Start Song (DJ sets song as now playing)
+  // DJ Plays Next / Starts a Song
   const startSong = useCallback((songId: string) => {
-    const targetSong = state.queue.find((s) => s.id === songId);
-    if (!targetSong) return;
+    const song = state.queue.find((s) => s.id === songId);
+    if (!song) return;
 
     const remainingQueue = state.queue.filter((s) => s.id !== songId);
-    const sortedRemaining = sortQueueByPriority(remainingQueue);
+    const reorderedQueue = sortQueueByPriority(remainingQueue);
 
-    const playingSong: SongRequest = {
-      ...targetSong,
+    const nowPlaying: SongRequest = {
+      ...song,
       status: 'playing',
       startedPlayingAt: Date.now(),
       estimatedWaitMinutes: 0,
@@ -523,58 +570,56 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     updateStateAndBroadcast((prev) => ({
       ...prev,
-      currentSong: playingSong,
-      queue: sortedRemaining,
+      currentSong: nowPlaying,
+      queue: reorderedQueue,
     }));
 
-    // 1. Notify the table singing right now
-    notifyTurnStatus(
-      targetSong.tableId,
+    triggerNotification(
+      song.tableId,
       'now_playing',
       '🎤 ¡Es tu turno de cantar!',
-      `Tu canción "${targetSong.title}" está en tarima. ¡Acércate al escenario!`
+      `Tu canción "${song.title}" está en tarima. ¡Acércate al escenario!`
     );
 
-    // 2. Notify the next table in queue (1 song away)
-    if (sortedRemaining.length > 0) {
-      const nextSong = sortedRemaining[0];
-      notifyTurnStatus(
-        nextSong.tableId,
+    if (reorderedQueue.length > 0) {
+      const next1 = reorderedQueue[0];
+      triggerNotification(
+        next1.tableId,
         'turn_soon',
         '⚡ ¡Prepárate! Eres el siguiente',
-        `Tu canción "${nextSong.title}" suena en aproximadamente ~3-4 minutos.`
+        `Tu canción "${next1.title}" suena en aproximadamente ~3-4 minutos.`
       );
     }
-    // 3. Notify table 2 in queue (2 songs away)
-    if (sortedRemaining.length > 1) {
-      const inTwoSongs = sortedRemaining[1];
-      notifyTurnStatus(
-        inTwoSongs.tableId,
+
+    if (reorderedQueue.length > 1) {
+      const next2 = reorderedQueue[1];
+      triggerNotification(
+        next2.tableId,
         'turn_soon',
         '🔔 Tu turno está muy cerca',
-        `Tu canción "${inTwoSongs.title}" es la #2 en cola. ¡Ten listo tu micrófono!`
+        `Tu canción "${next2.title}" es la #2 en cola. ¡Ten listo tu micrófono!`
       );
     }
-  }, [state.queue, updateStateAndBroadcast, notifyTurnStatus]);
+  }, [state.queue, updateStateAndBroadcast, triggerNotification]);
 
-  // Complete Current Song & Auto Advance
+  // DJ Completes Current Song
   const completeCurrentSong = useCallback(() => {
     if (!state.currentSong) return;
 
-    const completed = {
+    const finishedSong: SongRequest = {
       ...state.currentSong,
-      status: 'completed' as const,
+      status: 'completed',
       completedAt: Date.now(),
     };
 
     updateStateAndBroadcast((prev) => {
       const nextQueue = [...prev.queue];
-      const nextSong = nextQueue.length > 0 ? nextQueue.shift()! : null;
+      const autoNext = nextQueue.length > 0 ? nextQueue.shift()! : null;
 
-      let newCurrentSong: SongRequest | null = null;
-      if (nextSong) {
-        newCurrentSong = {
-          ...nextSong,
+      let nextPlaying: SongRequest | null = null;
+      if (autoNext) {
+        nextPlaying = {
+          ...autoNext,
           status: 'playing',
           startedPlayingAt: Date.now(),
           estimatedWaitMinutes: 0,
@@ -583,8 +628,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return {
         ...prev,
-        history: [completed, ...prev.history],
-        currentSong: newCurrentSong,
+        history: [finishedSong, ...prev.history],
+        currentSong: nextPlaying,
         queue: sortQueueByPriority(nextQueue),
       };
     });
@@ -592,19 +637,18 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     soundManager.playVictoryFanfare();
   }, [state.currentSong, updateStateAndBroadcast]);
 
-  // Cancel a Song
+  // Cancel / Delete a song from Queue
   const cancelSong = useCallback((songId: string) => {
     updateStateAndBroadcast((prev) => {
-      const cancelled = prev.queue.find((s) => s.id === songId);
-      const newQueue = prev.queue.filter((s) => s.id !== songId);
+      const target = prev.queue.find((s) => s.id === songId);
+      const nextQueue = prev.queue.filter((s) => s.id !== songId);
 
-      // Refund quota to table if cancelled
-      let newTables = prev.tables;
-      if (cancelled && newTables[cancelled.tableId]) {
-        const table = newTables[cancelled.tableId];
-        newTables = {
-          ...newTables,
-          [cancelled.tableId]: {
+      let updatedTables = prev.tables;
+      if (target && updatedTables[target.tableId]) {
+        const table = updatedTables[target.tableId];
+        updatedTables = {
+          ...updatedTables,
+          [target.tableId]: {
             ...table,
             quotaUsed: Math.max(0, table.quotaUsed - 1),
           },
@@ -613,40 +657,39 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       return {
         ...prev,
-        tables: newTables,
-        queue: sortQueueByPriority(newQueue),
+        tables: updatedTables,
+        queue: sortQueueByPriority(nextQueue),
       };
     });
   }, [updateStateAndBroadcast]);
 
-  // Reorder queue manually (DJ override)
+  // DJ Manual Queue Reorder
   const reorderQueueManual = useCallback((newQueue: SongRequest[]) => {
     updateStateAndBroadcast((prev) => ({
       ...prev,
-      queue: newQueue.map((song, idx) => ({
-        ...song,
+      queue: newQueue.map((s, idx) => ({
+        ...s,
         estimatedWaitMinutes: Math.max(1, Math.round((idx + 1) * 3.5)),
       })),
     }));
   }, [updateStateAndBroadcast]);
 
-  // Spin Roulette & Apply Reward
+  // Spin Rewards Roulette
   const spinRoulette = useCallback((tableId: string): RoulettePrize => {
     const activePrizes = state.prizes.filter((p) => p.active);
     const totalWeight = activePrizes.reduce((sum, p) => sum + p.weight, 0);
 
-    let random = Math.random() * totalWeight;
+    let randomVal = Math.random() * totalWeight;
     let selectedPrize = activePrizes[0];
 
     for (const prize of activePrizes) {
-      if (random < prize.weight) {
+      if (randomVal < prize.weight) {
         selectedPrize = prize;
         break;
       }
-      random -= prize.weight;
+      randomVal -= prize.weight;
     }
 
-    // Apply reward to table
     updateStateAndBroadcast((prev) => {
       const table = prev.tables[tableId];
       if (!table) return prev;
@@ -688,7 +731,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return selectedPrize;
   }, [state.prizes, updateStateAndBroadcast]);
 
-  // Update prizes configuration
+  // Update Roulette Prizes Configuration
   const updatePrizes = useCallback((prizes: RoulettePrize[]) => {
     updateStateAndBroadcast((prev) => ({
       ...prev,
@@ -696,10 +739,10 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [updateStateAndBroadcast]);
 
-  // Add new Table
+  // Add a new Table
   const addTable = useCallback((id: string, name: string, tier: ConsumptionTier = 'standard') => {
-    const newPin = generateTablePin();
-    const newToken = generateSessionToken(id, newPin);
+    const pin = generateTablePin();
+    const token = generateSessionToken(id, pin);
 
     updateStateAndBroadcast((prev) => ({
       ...prev,
@@ -714,16 +757,18 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           extraQuotaBonus: 0,
           cooldownUntil: null,
           lastRequestAt: null,
-          pin: newPin,
-          sessionToken: newToken,
+          pin,
+          sessionToken: token,
           sessionCreatedAt: Date.now(),
           isLocked: false,
+          authorizedDevices: [],
           rewardsWon: [],
         },
       },
     }));
   }, [updateStateAndBroadcast]);
 
+  // Dismiss Notification
   const dismissNotification = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
@@ -731,8 +776,9 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, []);
 
+  // Reset All Club Data
   const resetAllData = useCallback(() => {
-    const fresh: KaraokeState = {
+    const freshState: KaraokeState = {
       tables: INITIAL_TABLES,
       queue: sortQueueByPriority(INITIAL_QUEUE),
       currentSong: INITIAL_CURRENT_SONG,
@@ -742,20 +788,14 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       cooldownDefaultMinutes: 15,
       activeView: 'user',
       currentTableId: 'M-04',
-      deviceAuthorizations: {
-        'M-04': {
-          isUnlocked: true,
-          isHost: true,
-          unlockedAt: Date.now(),
-          token: 'tk_m04_auth5b7f',
-        },
-      },
+      deviceAuthorizations: {},
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(freshState));
     if (channel) {
-      channel.postMessage({ type: 'STATE_SYNC', payload: fresh });
+      channel.postMessage({ type: 'STATE_SYNC', payload: freshState });
     }
-    setState(fresh);
+    setState(freshState);
   }, [channel]);
 
   return (
@@ -768,15 +808,16 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         activeView: state.activeView,
         setActiveView,
         isAdminAuthenticated,
-        setIsAdminAuthenticated: (val) => {
-          setIsAdminAuthenticated(val);
-          sessionStorage.setItem('karaoke_admin_auth', val ? 'true' : 'false');
+        setIsAdminAuthenticated: (auth: boolean) => {
+          setIsAdminAuthenticated(auth);
+          sessionStorage.setItem('karaoke_admin_auth', auth ? 'true' : 'false');
         },
         showAdminLoginModal,
         setShowAdminLoginModal,
         currentDeviceAuth,
         isTableAuthenticated,
         unlockTableWithPin,
+        disconnectCurrentDevice,
         lockTableSession,
         regenerateTableSession,
         regenerateAllSessions,
@@ -799,7 +840,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 };
 
-export const useKaraoke = () => {
+export const useKaraoke = (): KaraokeContextType => {
   const context = useContext(KaraokeContext);
   if (!context) {
     throw new Error('useKaraoke must be used within a KaraokeProvider');
