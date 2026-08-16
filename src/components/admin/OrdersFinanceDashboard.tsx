@@ -9,6 +9,9 @@ import {
   ShoppingBag,
   BellRing,
   Award,
+  Trash2,
+  Edit2,
+  Save,
 } from 'lucide-react';
 import { useKaraoke } from '../../context/KaraokeContext';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
@@ -17,8 +20,14 @@ import { BarOrder } from '../../types';
 import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 
 export const OrdersFinanceDashboard: React.FC = () => {
-  const { state, confirmAndDeliverOrder, cancelOrder } = useKaraoke();
+  const { state, confirmAndDeliverOrder, cancelOrder, editOrder, deleteOrder } = useKaraoke();
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'delivered' | 'cancelled'>('all');
+
+  // Edit Order State
+  const [editingOrder, setEditingOrder] = useState<BarOrder | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editStatus, setEditStatus] = useState<BarOrder['status']>('pending');
 
   const orders = state.orders || [];
 
@@ -67,6 +76,33 @@ export const OrdersFinanceDashboard: React.FC = () => {
     if (reason !== null) {
       cancelOrder(order.id, reason || undefined);
     }
+  };
+
+  const handleDelete = (order: BarOrder) => {
+    if (window.confirm(`¿Deseas ELIMINAR permanentemente la comanda de ${order.tableName} ($${order.totalAmount})? Si ya estaba entregada, se descontará del consumo de la mesa.`)) {
+      deleteOrder(order.id);
+    }
+  };
+
+  const handleOpenEdit = (order: BarOrder) => {
+    setEditingOrder(order);
+    setEditAmount(order.totalAmount.toString());
+    setEditNotes(order.notes || '');
+    setEditStatus(order.status);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+
+    const numAmount = parseFloat(editAmount) || 0;
+    editOrder(editingOrder.id, {
+      totalAmount: numAmount,
+      notes: editNotes.trim() || undefined,
+      status: editStatus,
+    });
+
+    setEditingOrder(null);
   };
 
   return (
@@ -212,22 +248,42 @@ export const OrdersFinanceDashboard: React.FC = () => {
                           </span>
                         </div>
 
-                        {/* Status Badge & Amount */}
-                        <div className="text-right flex-shrink-0">
-                          <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono block">
-                            ${order.totalAmount}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                              isPending
-                                ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse'
-                                : isDelivered
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                                : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                            }`}
-                          >
-                            {isPending ? '🟡 Pendiente' : isDelivered ? '🟢 Entregado' : '🔴 Cancelado'}
-                          </span>
+                        {/* Status Badge, Amount & CRUD Actions */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono block">
+                              ${order.totalAmount}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                isPending
+                                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse'
+                                  : isDelivered
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              }`}
+                            >
+                              {isPending ? '🟡 Pendiente' : isDelivered ? '🟢 Entregado' : '🔴 Cancelado'}
+                            </span>
+                          </div>
+
+                          {/* Edit & Delete Buttons */}
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => handleOpenEdit(order)}
+                              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-colors"
+                              title="Editar pedido / monto"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(order)}
+                              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-200 transition-colors"
+                              title="Eliminar pedido permanentemente"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -258,6 +314,13 @@ export const OrdersFinanceDashboard: React.FC = () => {
                         {order.notes && (
                           <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-pastel-mint italic mt-2">
                             💬 <strong>Nota del cliente:</strong> "{order.notes}"
+                          </div>
+                        )}
+
+                        {/* Cancellation Reason */}
+                        {order.status === 'cancelled' && order.cancellationReason && (
+                          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs text-rose-300 mt-2">
+                            ⚠️ <strong>Motivo de cancelación:</strong> {order.cancellationReason}
                           </div>
                         )}
                       </div>
@@ -306,7 +369,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
               {sortedTables.map((table, idx) => {
                 const config = TIER_CONFIGS[table.tier];
-                const progressToVip = Math.min(100, (table.totalSpend / 100) * 100);
+                const progressToVip = Math.min(100, (table.totalSpend / 101) * 100);
 
                 return (
                   <div key={table.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1">
@@ -329,7 +392,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Progress Bar to $100 */}
+                    {/* Progress Bar to $101 VIP */}
                     <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-pastel-lavender to-emerald-400 transition-all"
@@ -374,6 +437,93 @@ export const OrdersFinanceDashboard: React.FC = () => {
           </LiquidGlassCard>
         </div>
       </div>
+
+      {/* Edit Order Modal */}
+      {editingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/85 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="w-full max-w-sm">
+            <LiquidGlassCard variant="elevated" className="p-5 sm:p-6 relative">
+              <button
+                onClick={() => setEditingOrder(null)}
+                className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <h3 className="text-base font-black text-white mb-1 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-pastel-lavender" />
+                Editar Comanda ({editingOrder.tableName})
+              </h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Modifica el valor total, notas o estado del pedido.
+              </p>
+
+              <form onSubmit={handleSaveEdit} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Monto Total ($):
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-pastel-lavender"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Estado del Pedido:
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-white/15 text-white text-xs focus:outline-none focus:border-pastel-lavender"
+                  >
+                    <option value="pending">🟡 Pendiente (Por despachar)</option>
+                    <option value="delivered">🟢 Entregado (Sumado al consumo)</option>
+                    <option value="cancelled">🔴 Cancelado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Notas / Instrucciones:
+                  </label>
+                  <input
+                    type="text"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    placeholder="Instrucciones del pedido..."
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-pastel-lavender"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <LiquidButton
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingOrder(null)}
+                  >
+                    Cancelar
+                  </LiquidButton>
+                  <LiquidButton
+                    type="submit"
+                    variant="lavender"
+                    size="sm"
+                    icon={<Save className="w-3.5 h-3.5" />}
+                  >
+                    Guardar Cambios
+                  </LiquidButton>
+                </div>
+              </form>
+            </LiquidGlassCard>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

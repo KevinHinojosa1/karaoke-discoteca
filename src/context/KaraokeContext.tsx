@@ -48,7 +48,12 @@ interface KaraokeContextType {
   placeOrder: (tableId: string, item: MenuItem, quantity?: number, notes?: string) => { success: boolean; error?: string; orderId?: string };
   confirmAndDeliverOrder: (orderId: string) => void;
   cancelOrder: (orderId: string, reason?: string) => void;
+  editOrder: (orderId: string, updatedData: Partial<BarOrder>) => void;
+  deleteOrder: (orderId: string) => void;
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
+  editTable: (tableId: string, updatedData: Partial<Table>) => void;
+  deleteTable: (tableId: string) => void;
+  resetTableSpend: (tableId: string) => void;
   startSong: (songId: string) => void;
   completeCurrentSong: () => void;
   cancelSong: (songId: string) => void;
@@ -60,7 +65,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v7';
+const STORAGE_KEY = 'karaoke_discoteca_state_v8';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -75,7 +80,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const initialAuthToken = urlParams.get('auth');
 
   const [state, setState] = useState<KaraokeState>(() => {
-    // Empty initial auths - strictly requires PIN
     const initialAuths: Record<string, TableDeviceAuth> = {};
 
     try {
@@ -167,7 +171,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const incoming = msg.payload as KaraokeState;
           if (!incoming || !incoming.tables) return prev;
 
-          // Merge incoming global tables and orders
           return {
             ...prev,
             tables: incoming.tables,
@@ -283,7 +286,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const currentDevices = table.authorizedDevices || [];
     const isAlreadyConnected = currentDevices.includes(deviceId);
 
-    // Enforce Max 3 Devices per table
     if (!isAlreadyConnected && currentDevices.length >= MAX_DEVICES_PER_TABLE) {
       soundManager.playTap();
       return {
@@ -294,7 +296,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const updatedDevices = isAlreadyConnected ? currentDevices : [...currentDevices, deviceId];
 
-    // Success! Authorize device
     soundManager.playVictoryFanfare();
 
     updateStateAndBroadcast((prev) => {
@@ -577,7 +578,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       notes: notes?.trim() || undefined,
       status: 'pending',
       createdAt: Date.now(),
-      isVipQualifying: item.isVipEligible || totalAmount >= 100,
+      isVipQualifying: item.isVipEligible || totalAmount >= 101,
     };
 
     updateStateAndBroadcast((prev) => ({
@@ -587,7 +588,6 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     soundManager.playVictoryFanfare();
 
-    // Alert Admin & Staff
     triggerNotification(
       tableId,
       'order_received',
@@ -598,7 +598,14 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true, orderId };
   }, [state.tables, updateStateAndBroadcast, triggerNotification]);
 
-  // Confirm and Deliver Order (Admin Action: sums to spend, elevates table tier if qualifying)
+  // Helper to recompute tier based on spend
+  const calculateTierFromSpend = (spend: number): ConsumptionTier => {
+    if (spend >= 101) return 'vip_100';
+    if (spend >= 51) return 'medium_50';
+    return 'standard';
+  };
+
+  // Confirm and Deliver Order
   const confirmAndDeliverOrder = useCallback((orderId: string) => {
     let orderDetails: BarOrder | null = null;
 
@@ -615,19 +622,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const table = prev.tables[target.tableId];
       if (!table) return { ...prev, orders: updatedOrders };
 
-      // Calculate new spend and new tier according to business rules:
-      // < $51 = standard (2 songs), $51 - $100 = medium_50 (3 songs), > $100 = vip_100 (5 songs)
       const newSpend = table.totalSpend + target.totalAmount;
-      let newTier: ConsumptionTier = table.tier;
-
-      if (newSpend >= 101) {
-        newTier = 'vip_100';
-      } else if (newSpend >= 51) {
-        newTier = 'medium_50';
-      } else {
-        newTier = 'standard';
-      }
-
+      const newTier = calculateTierFromSpend(newSpend);
       const newCooldown = newTier === 'vip_100' || newTier === 'medium_50' ? null : table.cooldownUntil;
 
       const updatedTable: Table = {
@@ -704,6 +700,90 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [state.orders, updateStateAndBroadcast, triggerNotification]);
 
+  // Edit Order (Admin Action)
+  const editOrder = useCallback((orderId: string, updatedData: Partial<BarOrder>) => {
+    updateStateAndBroadcast((prev) => {
+      const orderList = prev.orders || [];
+      const target = orderList.find((o) => o.id === orderId);
+      if (!target) return prev;
+
+      const updatedOrders = orderList.map((o) =>
+        o.id === orderId ? { ...o, ...updatedData } : o
+      );
+
+      // If price changed and was delivered, adjust table spend
+      let updatedTables = prev.tables;
+      if (target.status === 'delivered' && updatedData.totalAmount !== undefined && target.tableId in updatedTables) {
+        const table = updatedTables[target.tableId];
+        const diff = updatedData.totalAmount - target.totalAmount;
+        const newSpend = Math.max(0, table.totalSpend + diff);
+        const newTier = calculateTierFromSpend(newSpend);
+
+        updatedTables = {
+          ...updatedTables,
+          [target.tableId]: {
+            ...table,
+            totalSpend: newSpend,
+            tier: newTier,
+          },
+        };
+      }
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+
+      return {
+        ...prev,
+        orders: updatedOrders,
+        tables: updatedTables,
+        queue: recomputedQueue,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
+  // Delete Order (Admin Action)
+  const deleteOrder = useCallback((orderId: string) => {
+    updateStateAndBroadcast((prev) => {
+      const orderList = prev.orders || [];
+      const target = orderList.find((o) => o.id === orderId);
+      if (!target) return prev;
+
+      const updatedOrders = orderList.filter((o) => o.id !== orderId);
+
+      let updatedTables = prev.tables;
+      if (target.status === 'delivered' && target.tableId in updatedTables) {
+        const table = updatedTables[target.tableId];
+        const newSpend = Math.max(0, table.totalSpend - target.totalAmount);
+        const newTier = calculateTierFromSpend(newSpend);
+
+        updatedTables = {
+          ...updatedTables,
+          [target.tableId]: {
+            ...table,
+            totalSpend: newSpend,
+            tier: newTier,
+          },
+        };
+      }
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+
+      return {
+        ...prev,
+        orders: updatedOrders,
+        tables: updatedTables,
+        queue: recomputedQueue,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
   // Set Table Tier / Spend (DJ action)
   const setTableTier = useCallback((
     tableId: string,
@@ -757,6 +837,109 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       `Tu mesa ha sido asignada como ${TIER_CONFIGS[tier].label}. ¡Tus canciones han subido en prioridad!`
     );
   }, [updateStateAndBroadcast, triggerNotification]);
+
+  // Edit Table (Admin Action)
+  const editTable = useCallback((tableId: string, updatedData: Partial<Table>) => {
+    updateStateAndBroadcast((prev) => {
+      const table = prev.tables[tableId];
+      if (!table) return prev;
+
+      let newSpend = updatedData.totalSpend !== undefined ? updatedData.totalSpend : table.totalSpend;
+      let newTier = updatedData.tier || calculateTierFromSpend(newSpend);
+
+      const updatedTable: Table = {
+        ...table,
+        ...updatedData,
+        totalSpend: newSpend,
+        tier: newTier,
+      };
+
+      const updatedTables = {
+        ...prev.tables,
+        [tableId]: updatedTable,
+      };
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+
+      return {
+        ...prev,
+        tables: updatedTables,
+        queue: recomputedQueue,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
+  // Delete Table (Admin Action)
+  const deleteTable = useCallback((tableId: string) => {
+    updateStateAndBroadcast((prev) => {
+      const newTables = { ...prev.tables };
+      delete newTables[tableId];
+
+      const newAuths = { ...prev.deviceAuthorizations };
+      delete newAuths[tableId];
+
+      const newQueue = prev.queue.filter((s) => s.tableId !== tableId);
+
+      return {
+        ...prev,
+        tables: newTables,
+        queue: sortQueueByPriority(newQueue),
+        deviceAuthorizations: newAuths,
+        currentTableId: prev.currentTableId === tableId ? Object.keys(newTables)[0] || 'M-01' : prev.currentTableId,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
+  // Reset Table Spend ($0 for new party)
+  const resetTableSpend = useCallback((tableId: string) => {
+    const newPin = generateTablePin();
+    const newToken = generateSessionToken(tableId, newPin);
+
+    updateStateAndBroadcast((prev) => {
+      const table = prev.tables[tableId];
+      if (!table) return prev;
+
+      const updatedTable: Table = {
+        ...table,
+        totalSpend: 0,
+        quotaUsed: 0,
+        extraQuotaBonus: 0,
+        cooldownUntil: null,
+        tier: 'standard',
+        pin: newPin,
+        sessionToken: newToken,
+        sessionCreatedAt: Date.now(),
+        isLocked: false,
+        authorizedDevices: [],
+        rewardsWon: [],
+      };
+
+      const updatedAuths = { ...prev.deviceAuthorizations };
+      delete updatedAuths[tableId];
+
+      const updatedTables = {
+        ...prev.tables,
+        [tableId]: updatedTable,
+      };
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+
+      return {
+        ...prev,
+        tables: updatedTables,
+        queue: recomputedQueue,
+        deviceAuthorizations: updatedAuths,
+      };
+    });
+  }, [updateStateAndBroadcast]);
 
   // DJ Plays Next / Starts a Song
   const startSong = useCallback((songId: string) => {
@@ -957,7 +1140,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           id,
           name,
           tier,
-          totalSpend: tier === 'vip_100' ? 100 : tier === 'medium_50' ? 50 : 0,
+          totalSpend: tier === 'vip_100' ? 101 : tier === 'medium_50' ? 51 : 0,
           quotaUsed: 0,
           extraQuotaBonus: 0,
           cooldownUntil: null,
@@ -1033,7 +1216,12 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         placeOrder,
         confirmAndDeliverOrder,
         cancelOrder,
+        editOrder,
+        deleteOrder,
         setTableTier,
+        editTable,
+        deleteTable,
+        resetTableSpend,
         startSong,
         completeCurrentSong,
         cancelSong,
