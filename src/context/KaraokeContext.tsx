@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   AppNotification,
+  BarOrder,
   ConsumptionTier,
   KaraokeState,
   RoulettePrize,
@@ -10,6 +11,7 @@ import {
 } from '../types';
 import {
   INITIAL_CURRENT_SONG,
+  INITIAL_ORDERS,
   INITIAL_PRIZES,
   INITIAL_QUEUE,
   INITIAL_TABLES,
@@ -19,6 +21,7 @@ import { soundManager } from '../utils/audio';
 import { sendBrowserNotification } from '../utils/pushNotifications';
 import { generateSessionToken, generateTablePin, getOrCreateDeviceId } from '../utils/security';
 import { cloudSync } from '../utils/cloudSync';
+import { MenuItem } from '../data/liquorMenu';
 
 const MAX_DEVICES_PER_TABLE = 3;
 
@@ -42,6 +45,9 @@ interface KaraokeContextType {
   regenerateAllSessions: () => void;
   toggleTableLock: (tableId: string) => void;
   requestSong: (tableId: string, title: string, artist: string, notes?: string) => { success: boolean; error?: string; song?: SongRequest; eligibleForRoulette?: boolean };
+  placeOrder: (tableId: string, item: MenuItem, quantity?: number, notes?: string) => { success: boolean; error?: string; orderId?: string };
+  confirmAndDeliverOrder: (orderId: string) => void;
+  cancelOrder: (orderId: string, reason?: string) => void;
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
   startSong: (songId: string) => void;
   completeCurrentSong: () => void;
@@ -54,7 +60,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v6';
+const STORAGE_KEY = 'karaoke_discoteca_state_v7';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -78,6 +84,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const parsed = JSON.parse(saved);
         return {
           ...parsed,
+          orders: parsed.orders || INITIAL_ORDERS,
           currentTableId: initialTableParam in parsed.tables ? initialTableParam : 'M-04',
           activeView: urlParams.get('view') === 'admin' ? 'admin' : urlParams.get('view') === 'stage' ? 'stage' : 'user',
           deviceAuthorizations: parsed.deviceAuthorizations || initialAuths,
@@ -92,6 +99,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queue: sortQueueByPriority(INITIAL_QUEUE),
       currentSong: INITIAL_CURRENT_SONG,
       history: [],
+      orders: INITIAL_ORDERS,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -159,21 +167,20 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const incoming = msg.payload as KaraokeState;
           if (!incoming || !incoming.tables) return prev;
 
-          // Merge incoming global tables (including authorizedDevices list) and global queue
+          // Merge incoming global tables and orders
           return {
             ...prev,
             tables: incoming.tables,
             queue: incoming.queue,
             currentSong: incoming.currentSong,
             history: incoming.history,
+            orders: incoming.orders || prev.orders,
             prizes: incoming.prizes || prev.prizes,
             notifications: incoming.notifications || prev.notifications,
-            // Keep local view and local table selection unless requested
           };
         });
       } else if (msg.type === 'REQUEST_SYNC') {
         setState((current) => {
-          // If we have state, broadcast back
           cloudSync.broadcastState(current, deviceId);
           return current;
         });
@@ -366,7 +373,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         sessionToken: newToken,
         sessionCreatedAt: Date.now(),
         isLocked: false,
-        authorizedDevices: [], // Wipes all connected phones!
+        authorizedDevices: [],
       };
 
       const updatedAuths = { ...prev.deviceAuthorizations };
@@ -536,6 +543,156 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       eligibleForRoulette: isStandard,
     };
   }, [state.tables, state.cooldownDefaultMinutes, updateStateAndBroadcast]);
+
+  // Place a Liquor / Combo Order from a Table
+  const placeOrder = useCallback((
+    tableId: string,
+    item: MenuItem,
+    quantity = 1,
+    notes?: string
+  ): { success: boolean; error?: string; orderId?: string } => {
+    const table = state.tables[tableId];
+    if (!table) {
+      return { success: false, error: 'Mesa no encontrada' };
+    }
+
+    const orderId = `ord-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`;
+    const totalAmount = item.price * quantity;
+
+    const newOrder: BarOrder = {
+      id: orderId,
+      tableId,
+      tableName: table.name,
+      items: [
+        {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          quantity,
+          includes: item.includes,
+        },
+      ],
+      totalAmount,
+      notes: notes?.trim() || undefined,
+      status: 'pending',
+      createdAt: Date.now(),
+      isVipQualifying: item.isVipEligible || totalAmount >= 100,
+    };
+
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      orders: [newOrder, ...(prev.orders || [])],
+    }));
+
+    soundManager.playVictoryFanfare();
+
+    // Alert Admin & Staff
+    triggerNotification(
+      tableId,
+      'order_received',
+      '🍸 ¡Nuevo Pedido en Barra!',
+      `${table.name} ordenó: ${quantity}x ${item.name} ($${totalAmount}).`
+    );
+
+    return { success: true, orderId };
+  }, [state.tables, updateStateAndBroadcast, triggerNotification]);
+
+  // Confirm and Deliver Order (Admin Action: sums to spend, elevates table tier if qualifying)
+  const confirmAndDeliverOrder = useCallback((orderId: string) => {
+    let orderDetails: BarOrder | null = null;
+
+    updateStateAndBroadcast((prev) => {
+      const orderList = prev.orders || [];
+      const target = orderList.find((o) => o.id === orderId);
+      if (!target || target.status === 'delivered') return prev;
+
+      orderDetails = target;
+      const updatedOrders = orderList.map((o) =>
+        o.id === orderId ? { ...o, status: 'delivered' as const, deliveredAt: Date.now() } : o
+      );
+
+      const table = prev.tables[target.tableId];
+      if (!table) return { ...prev, orders: updatedOrders };
+
+      // Calculate new spend and new tier
+      const newSpend = table.totalSpend + target.totalAmount;
+      let newTier: ConsumptionTier = table.tier;
+
+      if (newSpend >= 100) {
+        newTier = 'vip_100';
+      } else if (newSpend >= 50 && table.tier === 'standard') {
+        newTier = 'medium_50';
+      }
+
+      const newCooldown = newTier === 'vip_100' || newTier === 'medium_50' ? null : table.cooldownUntil;
+
+      const updatedTable: Table = {
+        ...table,
+        totalSpend: newSpend,
+        tier: newTier,
+        cooldownUntil: newCooldown,
+      };
+
+      const updatedTables = {
+        ...prev.tables,
+        [target.tableId]: updatedTable,
+      };
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      const recomputedQueue = syncQueueWithTableTiers(prev.queue, tableTiersMap);
+
+      return {
+        ...prev,
+        orders: updatedOrders,
+        tables: updatedTables,
+        queue: recomputedQueue,
+      };
+    });
+
+    soundManager.playVictoryFanfare();
+
+    if (orderDetails) {
+      const ord = orderDetails as BarOrder;
+      triggerNotification(
+        ord.tableId,
+        'order_delivered',
+        '🍸 ¡Pedido de Barra Entregado!',
+        `Se han sumado $${ord.totalAmount} a tu consumo. ¡Revisa tus cupos y prioridad en el karaoke!`
+      );
+    }
+  }, [updateStateAndBroadcast, triggerNotification]);
+
+  // Cancel Order (Admin Action)
+  const cancelOrder = useCallback((orderId: string, reason?: string) => {
+    updateStateAndBroadcast((prev) => {
+      const orderList = prev.orders || [];
+      const target = orderList.find((o) => o.id === orderId);
+      if (!target) return prev;
+
+      const updatedOrders = orderList.map((o) =>
+        o.id === orderId ? { ...o, status: 'cancelled' as const } : o
+      );
+
+      return {
+        ...prev,
+        orders: updatedOrders,
+      };
+    });
+
+    const targetOrder = (state.orders || []).find((o) => o.id === orderId);
+    if (targetOrder) {
+      triggerNotification(
+        targetOrder.tableId,
+        'info',
+        'Pedido Cancelado',
+        `Tu pedido en barra fue cancelado.${reason ? ` Motivo: ${reason}` : ''}`
+      );
+    }
+  }, [state.orders, updateStateAndBroadcast, triggerNotification]);
 
   // Set Table Tier / Spend (DJ action)
   const setTableTier = useCallback((
@@ -821,6 +978,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queue: sortQueueByPriority(INITIAL_QUEUE),
       currentSong: INITIAL_CURRENT_SONG,
       history: [],
+      orders: INITIAL_ORDERS,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -862,6 +1020,9 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         regenerateAllSessions,
         toggleTableLock,
         requestSong,
+        placeOrder,
+        confirmAndDeliverOrder,
+        cancelOrder,
         setTableTier,
         startSong,
         completeCurrentSong,

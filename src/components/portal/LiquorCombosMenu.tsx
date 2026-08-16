@@ -5,8 +5,8 @@ import {
   Crown,
   Search,
   Check,
-  GlassWater,
   BellRing,
+  Send,
 } from 'lucide-react';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
 import {
@@ -14,6 +14,7 @@ import {
   LIQUOR_MENU_ITEMS,
   MenuItem,
 } from '../../data/liquorMenu';
+import { OrderConfirmationModal } from './OrderConfirmationModal';
 
 interface LiquorCombosMenuProps {
   onBackToHome?: () => void;
@@ -24,7 +25,8 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
   const [activeCategory, setActiveCategory] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItemForOrder, setSelectedItemForOrder] = useState<MenuItem | null>(null);
-  const [orderFeedback, setOrderFeedback] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [orderFeedbackMessage, setOrderFeedbackMessage] = useState<string | null>(null);
 
   const filteredItems = LIQUOR_MENU_ITEMS.filter((item) => {
     const matchesCategory =
@@ -35,12 +37,16 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleCallWaiterForOrder = (item: MenuItem) => {
+  const handleOpenOrderModal = (item: MenuItem) => {
     setSelectedItemForOrder(item);
-    setOrderFeedback(true);
+    setShowConfirmModal(true);
+  };
+
+  const handleOrderPlaced = (_orderId: string) => {
+    setOrderFeedbackMessage(`¡Tu pedido de ${selectedItemForOrder?.name} fue enviado a la barra con éxito!`);
     setTimeout(() => {
-      setOrderFeedback(false);
-    }, 4000);
+      setOrderFeedbackMessage(null);
+    }, 5000);
   };
 
   return (
@@ -55,7 +61,7 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
           Barra & Coctelería Hinojosa
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-          Disfruta los mejores licores mientras cantas. ¡Alcanza <strong>$100</strong> en consumo para obtener <strong>5 canciones VIP con Prioridad Alta</strong>!
+          Pide tus combos directamente a la barra. ¡Alcanza <strong>$100</strong> en consumo para desbloquear <strong>5 canciones VIP con Prioridad Alta</strong>!
         </p>
       </div>
 
@@ -122,18 +128,15 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
       </div>
 
       {/* Order Feedback Alert */}
-      {orderFeedback && selectedItemForOrder && (
-        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs flex items-center justify-between animate-in zoom-in-95 duration-200">
-          <div className="flex items-center gap-2">
-            <BellRing className="w-5 h-5 text-emerald-400 animate-bounce" />
+      {orderFeedbackMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs flex items-center justify-between animate-in zoom-in-95 duration-200 shadow-glow-mint">
+          <div className="flex items-center gap-2.5">
+            <BellRing className="w-5 h-5 text-emerald-400 animate-bounce flex-shrink-0" />
             <div>
-              <strong className="block text-white">¡Avisa a tu mesero o en barra!</strong>
-              <span>Has seleccionado: <strong>{selectedItemForOrder.name}</strong> (${selectedItemForOrder.price}).</span>
+              <strong className="block text-white">¡Comanda enviada a la barra!</strong>
+              <span>{orderFeedbackMessage}</span>
             </div>
           </div>
-          <span className="text-[10px] bg-emerald-400/20 px-2 py-1 rounded-lg border border-emerald-400/30">
-            Mesa lista
-          </span>
         </div>
       )}
 
@@ -164,7 +167,7 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <span className="text-xl sm:text-2xl font-black text-emerald-400">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
                     ${item.price}
                   </span>
                 </div>
@@ -210,16 +213,27 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
               )}
 
               <button
-                onClick={() => handleCallWaiterForOrder(item)}
-                className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-pastel-lavender/30 text-white hover:text-pastel-lavender border border-white/15 text-xs font-semibold flex items-center gap-1.5 transition-all tap-squish"
+                onClick={() => handleOpenOrderModal(item)}
+                className="px-3.5 py-1.5 rounded-xl bg-pastel-lavender/25 hover:bg-pastel-lavender/35 text-pastel-lavender border border-pastel-lavender/40 text-xs font-bold flex items-center gap-1.5 transition-all tap-squish shadow-glow-lavender"
               >
-                <GlassWater className="w-3.5 h-3.5 text-pastel-pink" />
+                <Send className="w-3.5 h-3.5 text-pastel-pink" />
                 <span>Pedir este combo</span>
               </button>
             </div>
           </LiquidGlassCard>
         ))}
       </div>
+
+      {/* Confirmation Modal */}
+      <OrderConfirmationModal
+        item={selectedItemForOrder}
+        isOpen={showConfirmModal}
+        onClose={() => {
+          setShowConfirmModal(false);
+          setSelectedItemForOrder(null);
+        }}
+        onOrderPlaced={handleOrderPlaced}
+      />
     </div>
   );
 };

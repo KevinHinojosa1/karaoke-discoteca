@@ -69,10 +69,32 @@ export interface SongRequest {
   estimatedWaitMinutes?: number;
 }
 
+export interface BarOrderItem {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  quantity: number;
+  includes?: string[];
+}
+
+export interface BarOrder {
+  id: string;
+  tableId: string;
+  tableName: string;
+  items: BarOrderItem[];
+  totalAmount: number;
+  notes?: string;
+  status: 'pending' | 'preparing' | 'delivered' | 'cancelled';
+  createdAt: number;
+  deliveredAt?: number;
+  isVipQualifying?: boolean;
+}
+
 export interface AppNotification {
   id: string;
   tableId: string;
-  type: 'turn_soon' | 'now_playing' | 'tier_upgraded' | 'roulette_win' | 'info';
+  type: 'turn_soon' | 'now_playing' | 'tier_upgraded' | 'roulette_win' | 'order_received' | 'order_delivered' | 'info';
   title: string;
   message: string;
   timestamp: number;
@@ -91,6 +113,7 @@ export interface KaraokeState {
   queue: SongRequest[];
   currentSong: SongRequest | null;
   history: SongRequest[];
+  orders: BarOrder[];
   prizes: RoulettePrize[];
   notifications: AppNotification[];
   cooldownDefaultMinutes: number;
@@ -98,4 +121,3 @@ export interface KaraokeState {
   currentTableId: string;
   deviceAuthorizations: Record<string, TableDeviceAuth>; // tableId -> auth state
 }
-

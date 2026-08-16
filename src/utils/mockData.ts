@@ -1,4 +1,4 @@
-import { RoulettePrize, SongRequest, Table } from '../types';
+import { BarOrder, RoulettePrize, SongRequest, Table } from '../types';
 
 export const INITIAL_TABLES: Record<string, Table> = {
   'VIP-01': {
@@ -263,6 +263,115 @@ export const INITIAL_QUEUE: SongRequest[] = [
     status: 'pending',
     createdAt: Date.now() - 1000 * 60 * 7,
     estimatedWaitMinutes: 20,
+  },
+];
+
+export const INITIAL_ORDERS: BarOrder[] = [
+  {
+    id: 'ord-101',
+    tableId: 'VIP-01',
+    tableName: 'Mesa VIP 1 (Palco)',
+    items: [
+      {
+        id: 'combo-hinojosa-gold',
+        name: 'Combo Hinojosa Gold VIP',
+        category: 'combos_vip',
+        price: 140,
+        quantity: 1,
+        includes: ['JW Gold Label (750ml)', '4 Red Bulls', 'Hielera', 'Snacks'],
+      },
+    ],
+    totalAmount: 140,
+    notes: 'Hielo extra por favor',
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 45,
+    deliveredAt: Date.now() - 1000 * 60 * 40,
+    isVipQualifying: true,
+  },
+  {
+    id: 'ord-102',
+    tableId: 'VIP-02',
+    tableName: 'Mesa VIP 2',
+    items: [
+      {
+        id: 'combo-black-party',
+        name: 'Combo Johnnie Walker Black Label',
+        category: 'combos_vip',
+        price: 110,
+        quantity: 1,
+        includes: ['JW Black (750ml)', '4 Tónicas', '2 Red Bulls'],
+      },
+    ],
+    totalAmount: 110,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 60,
+    deliveredAt: Date.now() - 1000 * 60 * 52,
+    isVipQualifying: true,
+  },
+  {
+    id: 'ord-103',
+    tableId: 'M-04',
+    tableName: 'Mesa 04 (Tu Mesa)',
+    items: [
+      {
+        id: 'balde-coronas-6',
+        name: 'Balde de 6 Cervezas Corona Extra',
+        category: 'shots_cervezas',
+        price: 25,
+        quantity: 1,
+      },
+      {
+        id: 'coctel-mojito-pasion',
+        name: 'Mojito Pasión & Menta',
+        category: 'cocteles',
+        price: 10,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 35,
+    notes: 'Bien frías las coronas',
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 25,
+    deliveredAt: Date.now() - 1000 * 60 * 18,
+    isVipQualifying: false,
+  },
+  {
+    id: 'ord-104',
+    tableId: 'VIP-03',
+    tableName: 'Mesa VIP 3',
+    items: [
+      {
+        id: 'botella-gin-tanqueray',
+        name: 'Tanqueray London Dry Gin',
+        category: 'botellas',
+        price: 75,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 75,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 35,
+    deliveredAt: Date.now() - 1000 * 60 * 28,
+    isVipQualifying: false,
+  },
+  {
+    id: 'ord-105',
+    tableId: 'M-08',
+    tableName: 'Mesa 08',
+    items: [
+      {
+        id: 'botella-old-parr',
+        name: 'Old Parr 12 Años',
+        category: 'botellas',
+        price: 85,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 85,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 50,
+    deliveredAt: Date.now() - 1000 * 60 * 42,
+    isVipQualifying: false,
   },
 ];
 
