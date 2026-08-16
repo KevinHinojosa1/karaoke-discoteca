@@ -94,7 +94,8 @@ export const App: React.FC = () => {
     ? TIER_CONFIGS[currentTable.tier]
     : TIER_CONFIGS.standard;
 
-  const hasSongsInQueue = state.queue.some((s) => s.tableId === activeTableId);
+  const userSongsCount = state.queue.filter((s) => s.tableId === activeTableId && s.status === 'pending').length;
+  const hasSongsInQueue = userSongsCount > 0 || state.currentSong?.tableId === activeTableId;
 
   const navItems = [
     { id: 'home', label: 'Inicio', icon: <Home className="w-5 h-5" /> },
@@ -224,34 +225,38 @@ export const App: React.FC = () => {
         </span>
       </footer>
 
-      {/* Bottom Floating App Navigation Bar (Liquid Glass Dock) */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-night-base/85 backdrop-blur-2xl border-t border-white/10 px-2 sm:px-4 py-2">
-        <div className="max-w-md mx-auto flex items-center justify-around">
+      {/* Bottom Floating Navigation Bar (WhatsApp style Floating Capsule Dock in Liquid Glass) */}
+      <nav className="fixed bottom-3 sm:bottom-5 inset-x-0 z-40 flex justify-center pointer-events-none px-3 sm:px-4">
+        <div className="pointer-events-auto flex items-center justify-between sm:justify-around gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full whatsapp-liquid-dock max-w-sm sm:max-w-md w-full">
           {navItems.map((item) => {
             const isActive = customerTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setCustomerTab(item.id as any)}
-                className={`flex flex-col items-center justify-center py-1 px-3 rounded-2xl transition-all tap-squish relative select-none ${
+                className={`relative flex flex-col items-center justify-center py-1 sm:py-1.5 px-3 sm:px-4 rounded-full transition-all duration-300 select-none tap-squish flex-1 ${
                   isActive
-                    ? 'text-pastel-lavender scale-105'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'text-white scale-105'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                 }`}
               >
-                {/* Active Glowing Background Pill */}
+                {/* Active Capsule Glass Background (WhatsApp Floating Pill) */}
                 {isActive && (
-                  <span className="absolute inset-0 bg-pastel-lavender/15 rounded-2xl border border-pastel-lavender/30 -z-10 shadow-glow-lavender" />
+                  <span className="absolute inset-0 bg-white/15 backdrop-blur-md rounded-full border border-white/20 shadow-inner -z-10 animate-in zoom-in-95 duration-200" />
                 )}
 
                 <div className="relative">
                   {item.icon}
+
+                  {/* WhatsApp-style Green/Pink Badge Count */}
                   {item.hasBadge && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-pastel-pink animate-ping" />
+                    <span className="absolute -top-1 -right-2 min-w-[17px] h-[17px] px-1 rounded-full bg-emerald-500 text-night-base text-[9px] font-black flex items-center justify-center shadow-glow-mint leading-none border border-slate-900 animate-pulse">
+                      {userSongsCount}
+                    </span>
                   )}
                 </div>
 
-                <span className="text-[10px] font-bold mt-0.5 tracking-tight">
+                <span className="text-[10px] sm:text-[11px] font-bold mt-0.5 tracking-tight">
                   {item.label}
                 </span>
               </button>
