@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Home,
   Mic2,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useKaraoke } from './context/KaraokeContext';
 import { AmbientBackground } from './components/ui/AmbientBackground';
-import { AdminSecretTrigger } from './components/ui/AdminSecretTrigger';
+import { AppBrandLogo } from './components/ui/AppBrandLogo';
 import { AdminLoginModal } from './components/ui/AdminLoginModal';
 import { NotificationToast } from './components/ui/NotificationToast';
 import { MyTableInfoModal } from './components/ui/MyTableInfoModal';
@@ -45,13 +45,43 @@ export const App: React.FC = () => {
   const [showTableInfoModal, setShowTableInfoModal] = useState(false);
   const [isSpectatorMode, setIsSpectatorMode] = useState(false);
 
+  // Hidden 5-tap gesture on footer copyright for DJ
+  const footerTapCount = useRef(0);
+  const footerTapTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSecretFooterTap = () => {
+    footerTapCount.current += 1;
+    if (footerTapTimer.current) clearTimeout(footerTapTimer.current);
+
+    if (footerTapCount.current >= 5) {
+      footerTapCount.current = 0;
+      setShowAdminLoginModal(true);
+    } else {
+      footerTapTimer.current = setTimeout(() => {
+        footerTapCount.current = 0;
+      }, 2500);
+    }
+  };
+
   // If activeView is 'stage', render the Stage / TV Display
   if (activeView === 'stage') {
     return <StageDisplay />;
   }
 
-  // If activeView is 'admin' and authenticated, render the Admin Dashboard
-  if (activeView === 'admin' && isAdminAuthenticated) {
+  // If activeView is 'admin', check authentication
+  if (activeView === 'admin') {
+    if (!isAdminAuthenticated) {
+      return (
+        <AmbientBackground>
+          <AdminLoginModal
+            isOpen={true}
+            onClose={() => setActiveView('user')}
+            onSuccess={() => setIsAdminAuthenticated(true)}
+          />
+        </AmbientBackground>
+      );
+    }
+
     return (
       <AmbientBackground>
         <AdminDashboard />
@@ -81,15 +111,11 @@ export const App: React.FC = () => {
 
   return (
     <AmbientBackground>
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar (100% Clean for customers, no admin buttons) */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-night-base/70 border-b border-white/10 px-3.5 sm:px-4 py-2.5 sm:py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
-          {/* Secret Logo Trigger (Double Click to unlock Admin) */}
-          <AdminSecretTrigger
-            onAdminTrigger={() => setShowAdminLoginModal(true)}
-            isAdminAuthenticated={isAdminAuthenticated}
-            onOpenAdminDirectly={() => setActiveView('admin')}
-          />
+          {/* Public Brand Logo */}
+          <AppBrandLogo />
 
           {/* Current Table Info Badge (Only shows client's own table info) */}
           <div className="flex items-center gap-2">
@@ -187,12 +213,15 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="py-4 pb-24 text-center text-[11px] text-slate-500 max-w-md mx-auto px-4">
-        <span>Karaoke Hinojosa • Sistema Digital</span>
-        <div className="text-[10px] text-slate-600 mt-0.5">
-          Doble clic en el logo para acceso administrativo
-        </div>
+      {/* Footer with discreet copyright (5-taps for DJ emergency access) */}
+      <footer className="py-4 pb-24 text-center text-[11px] text-slate-500 max-w-md mx-auto px-4 select-none">
+        <span
+          onClick={handleSecretFooterTap}
+          className="cursor-default"
+          title="Karaoke Hinojosa"
+        >
+          Karaoke Hinojosa • Todos los derechos reservados
+        </span>
       </footer>
 
       {/* Bottom Floating App Navigation Bar (Liquid Glass Dock) */}

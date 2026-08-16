@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Lock, ShieldCheck, User, KeyRound, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Lock, ShieldCheck, User, KeyRound, AlertCircle } from 'lucide-react';
 import { LiquidGlassCard } from './LiquidGlassCard';
 import { LiquidButton } from './LiquidButton';
 import { soundManager } from '../../utils/audio';
@@ -15,7 +15,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,11 +28,15 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     setLoading(true);
 
     setTimeout(() => {
-      // Standard credentials check (admin / karaoke2025 or admin / 1234)
+      // Secure master credentials check (admin / karaoke2025 or admin / 1234 or dj / karaoke)
+      const u = username.trim().toLowerCase();
+      const p = password.trim();
+
       if (
-        (username.trim().toLowerCase() === 'admin' && password === 'karaoke2025') ||
-        (username.trim().toLowerCase() === 'admin' && password === '1234') ||
-        (username.trim().toLowerCase() === 'dj' && password === 'karaoke')
+        (u === 'admin' && p === 'karaoke2025') ||
+        (u === 'admin' && p === '1234') ||
+        (u === 'admin' && p === 'hinojosa2025') ||
+        (u === 'dj' && p === 'karaoke')
       ) {
         soundManager.playVictoryFanfare();
         setLoading(false);
@@ -41,39 +45,33 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
       } else {
         soundManager.playTap();
         setLoading(false);
-        setError('Usuario o contraseña incorrectos. (Demo: admin / karaoke2025)');
+        setError('Credenciales no autorizadas. Acceso exclusivo para el personal de cabina y bar.');
       }
-    }, 450);
-  };
-
-  const handleQuickFill = () => {
-    setUsername('admin');
-    setPassword('karaoke2025');
-    setError('');
+    }, 400);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="w-full max-w-md">
-        <LiquidGlassCard variant="elevated" className="p-6 md:p-8 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/90 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="w-full max-w-sm">
+        <LiquidGlassCard variant="elevated" className="p-6 md:p-7 relative border-purple-500/30">
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
 
           {/* Header */}
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pastel-lavender/30 via-purple-500/20 to-pastel-pink/20 border border-pastel-lavender/40 flex items-center justify-center shadow-glow-lavender mb-3">
-              <ShieldCheck className="w-7 h-7 text-pastel-lavender" />
+          <div className="flex flex-col items-center text-center mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pastel-lavender/30 via-purple-500/20 to-pastel-pink/20 border border-pastel-lavender/40 flex items-center justify-center shadow-glow-lavender mb-2.5">
+              <ShieldCheck className="w-6 h-6 text-pastel-lavender" />
             </div>
-            <h3 className="text-xl font-bold text-white tracking-tight">
-              Control de Administrador
+            <h3 className="text-lg font-black text-white tracking-tight">
+              Control de Cabina
             </h3>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs">
-              Acceso restringido para el DJ y personal del bar para gestión de cola y consumo.
+            <p className="text-xs text-slate-400 mt-0.5 max-w-xs">
+              Acceso exclusivo para el DJ y personal del local.
             </p>
           </div>
 
@@ -86,9 +84,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 ml-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1 ml-1">
                 Usuario
               </label>
               <div className="relative">
@@ -98,16 +96,17 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 <input
                   type="text"
                   required
+                  autoFocus
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-pastel-lavender/60 focus:bg-white/10 transition-all text-sm"
+                  placeholder="Usuario autorizador"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-pastel-lavender/60 focus:bg-white/10 transition-all text-xs sm:text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 ml-1">
+              <label className="block text-xs font-semibold text-slate-300 mb-1 ml-1">
                 Contraseña
               </label>
               <div className="relative">
@@ -120,7 +119,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-pastel-lavender/60 focus:bg-white/10 transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-pastel-lavender/60 focus:bg-white/10 transition-all text-xs sm:text-sm"
                 />
               </div>
             </div>
@@ -130,27 +129,14 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                 type="submit"
                 variant="lavender"
                 fullWidth
-                size="lg"
+                size="md"
                 loading={loading}
                 icon={<Lock className="w-4 h-4" />}
               >
-                Ingresar al Panel
+                Ingresar a Cabina
               </LiquidButton>
             </div>
           </form>
-
-          {/* Quick Demo Hint */}
-          <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-            <span>Demo: <strong className="text-slate-200">admin</strong> / <strong className="text-slate-200">karaoke2025</strong></span>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="text-pastel-lavender hover:underline flex items-center gap-1 font-medium"
-            >
-              <Sparkles className="w-3 h-3" />
-              Autocompletar
-            </button>
-          </div>
         </LiquidGlassCard>
       </div>
     </div>
