@@ -90,6 +90,25 @@ export interface BarOrder {
   deliveredAt?: number;
   isVipQualifying?: boolean;
   cancellationReason?: string;
+  refundedAmount?: number;
+  creditNoteId?: string;
+}
+
+export interface CreditNote {
+  id: string; // e.g. "NC-2026-001"
+  orderId: string;
+  tableId: string;
+  tableName: string;
+  originalAmount: number;
+  refundAmount: number;
+  reason: string;
+  authorizedBy: string;
+  createdAt: number;
+  itemsReturned?: {
+    name: string;
+    quantity: number;
+    price: number;
+  }[];
 }
 
 export interface AppNotification {
@@ -115,6 +134,7 @@ export interface KaraokeState {
   currentSong: SongRequest | null;
   history: SongRequest[];
   orders: BarOrder[];
+  creditNotes: CreditNote[];
   prizes: RoulettePrize[];
   notifications: AppNotification[];
   cooldownDefaultMinutes: number;

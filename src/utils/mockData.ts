@@ -373,6 +373,106 @@ export const INITIAL_ORDERS: BarOrder[] = [
     deliveredAt: Date.now() - 1000 * 60 * 42,
     isVipQualifying: false,
   },
+  // Previous Days of Current Month (Historial del Mes)
+  {
+    id: 'ord-098',
+    tableId: 'VIP-01',
+    tableName: 'Mesa VIP 1 (Palco)',
+    items: [
+      {
+        id: 'combo-don-julio-70',
+        name: 'Combo Don Julio 70 Cristalino',
+        category: 'combos_vip',
+        price: 180,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 180,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2, // 2 days ago
+    deliveredAt: Date.now() - 1000 * 60 * 60 * 24 * 2 + 1000 * 60 * 10,
+    isVipQualifying: true,
+  },
+  {
+    id: 'ord-095',
+    tableId: 'VIP-02',
+    tableName: 'Mesa VIP 2',
+    items: [
+      {
+        id: 'combo-jagermeister-frenesi',
+        name: 'Combo Jagermeister Frenesí',
+        category: 'combos_vip',
+        price: 95,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 95,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 5, // 5 days ago
+    deliveredAt: Date.now() - 1000 * 60 * 60 * 24 * 5 + 1000 * 60 * 15,
+    isVipQualifying: false,
+  },
+  {
+    id: 'ord-090',
+    tableId: 'M-03',
+    tableName: 'Mesa 03',
+    items: [
+      {
+        id: 'balde-coronas-6',
+        name: 'Balde de 6 Cervezas Corona Extra',
+        category: 'shots_cervezas',
+        price: 25,
+        quantity: 2,
+      },
+    ],
+    totalAmount: 50,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 8, // 8 days ago
+    deliveredAt: Date.now() - 1000 * 60 * 60 * 24 * 8 + 1000 * 60 * 5,
+    isVipQualifying: false,
+  },
+  {
+    id: 'ord-085',
+    tableId: 'M-05',
+    tableName: 'Mesa 05',
+    items: [
+      {
+        id: 'botella-chivas-12',
+        name: 'Chivas Regal 12 Años',
+        category: 'botellas',
+        price: 80,
+        quantity: 1,
+      },
+    ],
+    totalAmount: 80,
+    status: 'delivered',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 12, // 12 days ago
+    deliveredAt: Date.now() - 1000 * 60 * 60 * 24 * 12 + 1000 * 60 * 12,
+    isVipQualifying: false,
+    refundedAmount: 80,
+    creditNoteId: 'NC-2026-001',
+  },
+];
+
+export const INITIAL_CREDIT_NOTES: import('../types').CreditNote[] = [
+  {
+    id: 'NC-2026-001',
+    orderId: 'ord-085',
+    tableId: 'M-05',
+    tableName: 'Mesa 05',
+    originalAmount: 80,
+    refundAmount: 80,
+    reason: 'Devolución de botella Chivas 12 por cambio de marca acordado con el cliente',
+    authorizedBy: 'Admin Principal (Kevin)',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 12 + 1000 * 60 * 30,
+    itemsReturned: [
+      {
+        name: 'Chivas Regal 12 Años',
+        quantity: 1,
+        price: 80,
+      },
+    ],
+  },
 ];
 
 export const INITIAL_PRIZES: RoulettePrize[] = [

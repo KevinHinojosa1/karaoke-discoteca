@@ -3,6 +3,7 @@ import {
   AppNotification,
   BarOrder,
   ConsumptionTier,
+  CreditNote,
   KaraokeState,
   RoulettePrize,
   SongRequest,
@@ -10,6 +11,7 @@ import {
   TableDeviceAuth,
 } from '../types';
 import {
+  INITIAL_CREDIT_NOTES,
   INITIAL_CURRENT_SONG,
   INITIAL_ORDERS,
   INITIAL_PRIZES,
@@ -50,6 +52,8 @@ interface KaraokeContextType {
   cancelOrder: (orderId: string, reason?: string) => void;
   editOrder: (orderId: string, updatedData: Partial<BarOrder>) => void;
   deleteOrder: (orderId: string) => void;
+  issueCreditNote: (orderId: string, refundAmount: number, reason: string, authorizedBy?: string) => { success: boolean; error?: string; creditNoteId?: string };
+  deleteCreditNote: (creditNoteId: string) => void;
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
   editTable: (tableId: string, updatedData: Partial<Table>) => void;
   deleteTable: (tableId: string) => void;
@@ -65,7 +69,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v8';
+const STORAGE_KEY = 'karaoke_discoteca_state_v9';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -89,6 +93,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...parsed,
           orders: parsed.orders || INITIAL_ORDERS,
+          creditNotes: parsed.creditNotes || INITIAL_CREDIT_NOTES,
           currentTableId: initialTableParam in parsed.tables ? initialTableParam : 'M-04',
           activeView: urlParams.get('view') === 'admin' ? 'admin' : urlParams.get('view') === 'stage' ? 'stage' : 'user',
           deviceAuthorizations: parsed.deviceAuthorizations || initialAuths,
@@ -104,6 +109,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       currentSong: INITIAL_CURRENT_SONG,
       history: [],
       orders: INITIAL_ORDERS,
+      creditNotes: INITIAL_CREDIT_NOTES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -178,6 +184,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             currentSong: incoming.currentSong,
             history: incoming.history,
             orders: incoming.orders || prev.orders,
+            creditNotes: incoming.creditNotes || prev.creditNotes,
             prizes: incoming.prizes || prev.prizes,
             notifications: incoming.notifications || prev.notifications,
           };
@@ -784,6 +791,118 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [updateStateAndBroadcast]);
 
+  // Issue Credit Note / Refund (Devoluciones & Notas de Crédito)
+  const issueCreditNote = useCallback((
+    orderId: string,
+    refundAmount: number,
+    reason: string,
+    authorizedBy = 'Administrador'
+  ) => {
+    let createdId = '';
+
+    updateStateAndBroadcast((prev) => {
+      const targetOrder = (prev.orders || []).find((o) => o.id === orderId);
+      if (!targetOrder) return prev;
+
+      const count = (prev.creditNotes || []).length + 1;
+      const year = new Date().getFullYear();
+      const ncId = `NC-${year}-${count.toString().padStart(3, '0')}`;
+      createdId = ncId;
+
+      const newCreditNote: CreditNote = {
+        id: ncId,
+        orderId,
+        tableId: targetOrder.tableId,
+        tableName: targetOrder.tableName,
+        originalAmount: targetOrder.totalAmount,
+        refundAmount,
+        reason: reason.trim() || 'Devolución acordada con el cliente',
+        authorizedBy,
+        createdAt: Date.now(),
+        itemsReturned: targetOrder.items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+        })),
+      };
+
+      // Update order with credit note link and refund
+      const updatedOrders = (prev.orders || []).map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              refundedAmount: (o.refundedAmount || 0) + refundAmount,
+              creditNoteId: ncId,
+            }
+          : o
+      );
+
+      // Adjust table spend
+      let updatedTables = prev.tables;
+      if (targetOrder.tableId in updatedTables && targetOrder.status === 'delivered') {
+        const table = updatedTables[targetOrder.tableId];
+        const newSpend = Math.max(0, table.totalSpend - refundAmount);
+        const newTier = calculateTierFromSpend(newSpend);
+
+        updatedTables = {
+          ...updatedTables,
+          [targetOrder.tableId]: {
+            ...table,
+            totalSpend: newSpend,
+            tier: newTier,
+          },
+        };
+      }
+
+      const tableTiersMap = Object.fromEntries(
+        Object.entries(updatedTables).map(([id, t]) => [id, t.tier])
+      );
+
+      return {
+        ...prev,
+        orders: updatedOrders,
+        creditNotes: [newCreditNote, ...(prev.creditNotes || [])],
+        tables: updatedTables,
+        queue: syncQueueWithTableTiers(prev.queue, tableTiersMap),
+      };
+    });
+
+    return { success: true, creditNoteId: createdId };
+  }, [updateStateAndBroadcast]);
+
+  // Delete Credit Note
+  const deleteCreditNote = useCallback((creditNoteId: string) => {
+    updateStateAndBroadcast((prev) => {
+      const target = (prev.creditNotes || []).find((c) => c.id === creditNoteId);
+      if (!target) return prev;
+
+      const updatedNotes = (prev.creditNotes || []).filter((c) => c.id !== creditNoteId);
+
+      // Restore table spend
+      let updatedTables = prev.tables;
+      if (target.tableId in updatedTables) {
+        const table = updatedTables[target.tableId];
+        const newSpend = table.totalSpend + target.refundAmount;
+        const newTier = calculateTierFromSpend(newSpend);
+
+        updatedTables = {
+          ...updatedTables,
+          [target.tableId]: {
+            ...table,
+            totalSpend: newSpend,
+            tier: newTier,
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        creditNotes: updatedNotes,
+        tables: updatedTables,
+      };
+    });
+  }, [updateStateAndBroadcast]);
+
   // Set Table Tier / Spend (DJ action)
   const setTableTier = useCallback((
     tableId: string,
@@ -1172,6 +1291,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       currentSong: INITIAL_CURRENT_SONG,
       history: [],
       orders: INITIAL_ORDERS,
+      creditNotes: INITIAL_CREDIT_NOTES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -1218,6 +1338,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         cancelOrder,
         editOrder,
         deleteOrder,
+        issueCreditNote,
+        deleteCreditNote,
         setTableTier,
         editTable,
         deleteTable,
