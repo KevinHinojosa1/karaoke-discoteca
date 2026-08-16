@@ -12,7 +12,7 @@ import { AmbientBackground } from './components/ui/AmbientBackground';
 import { AdminSecretTrigger } from './components/ui/AdminSecretTrigger';
 import { AdminLoginModal } from './components/ui/AdminLoginModal';
 import { NotificationToast } from './components/ui/NotificationToast';
-import { TableSwitcherModal } from './components/ui/TableSwitcherModal';
+import { MyTableInfoModal } from './components/ui/MyTableInfoModal';
 import { HomePortal } from './components/portal/HomePortal';
 import { LiquorCombosMenu } from './components/portal/LiquorCombosMenu';
 import { SongRequestForm } from './components/user/SongRequestForm';
@@ -42,7 +42,7 @@ export const App: React.FC = () => {
     'home' | 'request' | 'tracking' | 'menu' | 'roulette'
   >('home');
 
-  const [showTableModal, setShowTableModal] = useState(false);
+  const [showTableInfoModal, setShowTableInfoModal] = useState(false);
   const [isSpectatorMode, setIsSpectatorMode] = useState(false);
 
   // If activeView is 'stage', render the Stage / TV Display
@@ -91,19 +91,16 @@ export const App: React.FC = () => {
             onOpenAdminDirectly={() => setActiveView('admin')}
           />
 
-          {/* Table Switcher / QR Badge */}
+          {/* Current Table Info Badge (Only shows client's own table info) */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setShowTableModal(true);
-                setIsSpectatorMode(false);
-              }}
+              onClick={() => setShowTableInfoModal(true)}
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 transition-all text-xs tap-squish shadow-liquid-sm"
-              title="Cambiar mesa o simular escaneo QR"
+              title="Información de tu mesa asignada"
             >
               <QrCode className="w-3.5 h-3.5 text-pastel-lavender flex-shrink-0" />
-              <span className="font-bold text-white truncate max-w-[100px] sm:max-w-none">
-                {currentTable?.name || activeTableId}
+              <span className="font-bold text-white truncate max-w-[120px] sm:max-w-none">
+                {currentTable?.name || `Mesa ${activeTableId}`}
               </span>
               <span
                 className={`text-[9px] px-1.5 py-0.5 rounded font-bold border hidden xs:inline-block ${tierConfig.badgeBg}`}
@@ -246,9 +243,10 @@ export const App: React.FC = () => {
         }}
       />
 
-      <TableSwitcherModal
-        isOpen={showTableModal}
-        onClose={() => setShowTableModal(false)}
+      {/* Only client's own table info */}
+      <MyTableInfoModal
+        isOpen={showTableInfoModal}
+        onClose={() => setShowTableInfoModal(false)}
       />
     </AmbientBackground>
   );
