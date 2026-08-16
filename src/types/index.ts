@@ -89,6 +89,7 @@ export interface BarOrder {
   createdAt: number;
   deliveredAt?: number;
   isVipQualifying?: boolean;
+  cancellationReason?: string;
 }
 
 export interface AppNotification {

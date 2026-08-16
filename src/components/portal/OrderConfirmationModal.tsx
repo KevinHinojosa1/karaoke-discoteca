@@ -36,8 +36,6 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   const totalAmount = item.price * quantity;
   const currentSpend = currentTable?.totalSpend || 0;
   const projectedSpend = currentSpend + totalAmount;
-  const willBeVip = projectedSpend >= 100 && (currentTable?.tier !== 'vip_100');
-  const willBeMedium = projectedSpend >= 50 && projectedSpend < 100 && (currentTable?.tier === 'standard');
 
   const handleConfirmOrder = (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,15 +120,17 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
           )}
 
           {/* VIP Benefit Preview */}
-          {(willBeVip || willBeMedium || item.isVipEligible) && (
+          {(projectedSpend >= 51 || item.isVipEligible) && (
             <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-400/20 via-purple-500/15 to-pastel-pink/15 border border-amber-300/40 text-xs space-y-1 mb-4 shadow-glow-yellow">
               <div className="flex items-center gap-1.5 text-amber-200 font-bold">
                 <Crown className="w-4 h-4 text-amber-300" />
                 <span>¡Beneficio de Karaoke al confirmar!</span>
               </div>
               <p className="text-[11px] text-slate-300">
-                Al despacharse este pedido, tu consumo sumará <strong>${totalAmount}</strong> (Total: ${projectedSpend}), desbloqueando{' '}
-                <strong className="text-white">5 canciones con Prioridad {willBeVip || item.isVipEligible ? 'Alta ⭐' : 'Media 💎'}</strong>.
+                Al despacharse este pedido, tu consumo sumará <strong>${totalAmount}</strong> (Total: ${projectedSpend}), alcanzando{' '}
+                <strong className="text-white">
+                  {projectedSpend >= 101 ? '5 canciones con Prioridad VIP ⭐' : '3 canciones con Prioridad Media 💎'}
+                </strong>.
               </p>
             </div>
           )}

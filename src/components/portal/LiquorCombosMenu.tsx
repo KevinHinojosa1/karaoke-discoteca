@@ -15,6 +15,7 @@ import {
   MenuItem,
 } from '../../data/liquorMenu';
 import { OrderConfirmationModal } from './OrderConfirmationModal';
+import { OrderTrackingBanner } from './OrderTrackingBanner';
 
 interface LiquorCombosMenuProps {
   onBackToHome?: () => void;
@@ -50,43 +51,50 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full animate-in fade-in duration-300">
+      {/* Persistent Order Tracking Banner (Shows Active & Cancelled Orders with reason) */}
+      <OrderTrackingBanner />
+
       {/* Header Banner */}
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-1.5 max-w-2xl mx-auto">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pastel-yellow/20 border border-pastel-yellow/40 text-pastel-yellow text-xs font-black">
           <Wine className="w-3.5 h-3.5" />
           <span>CARTA DE LICORES & COMBOS VIP</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
           Barra & Coctelería Hinojosa
         </h2>
-        <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-          Pide tus combos directamente a la barra. ¡Alcanza <strong>$100</strong> en consumo para desbloquear <strong>5 canciones VIP con Prioridad Alta</strong>!
+        <p className="text-xs sm:text-sm text-slate-300">
+          Pide tus combos directamente a la barra. ¡Suma consumo y desbloquea más canciones con prioridad!
         </p>
       </div>
 
-      {/* VIP Consumption Benefit Explainer Box */}
+      {/* VIP Consumption Benefit Explainer Box (Updated Exact Rules) */}
       <LiquidGlassCard
         variant="lavender"
-        className="p-4 border-2 border-amber-300/40 bg-gradient-to-br from-amber-400/10 via-purple-500/10 to-pastel-pink/10 shadow-glow-yellow"
+        className="p-4 sm:p-5 border-2 border-amber-300/40 bg-gradient-to-br from-amber-400/10 via-purple-500/10 to-pastel-pink/10 shadow-glow-yellow"
       >
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-300 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
-            <Crown className="w-5 h-5" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-amber-400/20 text-amber-300 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
+            <Crown className="w-6 h-6" />
           </div>
-          <div className="space-y-1 text-xs">
-            <h4 className="font-black text-white flex items-center gap-1.5 text-sm">
-              <span>Beneficio de Karaoke por Consumo</span>
+          <div className="space-y-1 text-xs flex-1">
+            <h4 className="font-black text-white flex items-center gap-1.5 text-sm sm:text-base">
+              <span>Cupos de Canciones por Consumo</span>
               <Sparkles className="w-4 h-4 text-amber-300" />
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-slate-300">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
-                <span><strong>Consumo $100+:</strong> 5 canciones • Prioridad Alta ⭐</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-slate-300">
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <span><strong>Hasta $50:</strong> 2 canciones</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10">
                 <span className="w-2 h-2 rounded-full bg-pastel-lavender" />
-                <span><strong>Consumo $50 - $99:</strong> 5 canciones • Prioridad Media 💎</span>
+                <span><strong>$51 - $100:</strong> 3 canciones (Prioridad Media 💎)</span>
+              </div>
+              <div className="flex items-center gap-1.5 p-2 rounded-xl bg-amber-400/15 border border-amber-400/30 text-amber-200">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span><strong>$101+:</strong> 5 canciones (Prioridad VIP ⭐)</span>
               </div>
             </div>
           </div>
@@ -96,7 +104,7 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
       {/* Search and Category Filter Chips */}
       <div className="space-y-3">
         {/* Search */}
-        <div className="relative">
+        <div className="relative max-w-md mx-auto sm:mx-0">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
             <Search className="w-4 h-4" />
           </div>
@@ -109,8 +117,8 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
           />
         </div>
 
-        {/* Categories (Horizontal scrolling) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-2 px-2 sm:mx-0 sm:px-0 no-scrollbar">
+        {/* Categories (Horizontal scrolling on mobile, wrap on desktop) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap no-scrollbar">
           {LIQUOR_CATEGORIES.map((cat) => (
             <button
               key={cat.id}
@@ -140,8 +148,8 @@ export const LiquorCombosMenu: React.FC<LiquorCombosMenuProps> = () => {
         </div>
       )}
 
-      {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4">
+      {/* Menu Grid (Responsive: 1 col on mobile, 2 cols on tablet, 3 cols on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4.5">
         {filteredItems.map((item) => (
           <LiquidGlassCard
             key={item.id}

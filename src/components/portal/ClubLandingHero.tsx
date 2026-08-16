@@ -159,7 +159,7 @@ export const ClubLandingHero: React.FC<ClubLandingHeroProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             </h4>
             <p className="text-[11px] text-slate-300">
-              Pide un combo de botella en barra ($100+) y sube a 5 canciones sin espera.
+              Consume $51+ para 3 canciones o $101+ para 5 canciones VIP con Prioridad Alta.
             </p>
           </div>
         </div>

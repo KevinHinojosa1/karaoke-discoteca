@@ -615,14 +615,17 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const table = prev.tables[target.tableId];
       if (!table) return { ...prev, orders: updatedOrders };
 
-      // Calculate new spend and new tier
+      // Calculate new spend and new tier according to business rules:
+      // < $51 = standard (2 songs), $51 - $100 = medium_50 (3 songs), > $100 = vip_100 (5 songs)
       const newSpend = table.totalSpend + target.totalAmount;
       let newTier: ConsumptionTier = table.tier;
 
-      if (newSpend >= 100) {
+      if (newSpend >= 101) {
         newTier = 'vip_100';
-      } else if (newSpend >= 50 && table.tier === 'standard') {
+      } else if (newSpend >= 51) {
         newTier = 'medium_50';
+      } else {
+        newTier = 'standard';
       }
 
       const newCooldown = newTier === 'vip_100' || newTier === 'medium_50' ? null : table.cooldownUntil;
@@ -657,16 +660,17 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     if (orderDetails) {
       const ord = orderDetails as BarOrder;
+      const songsAllowed = ord.totalAmount >= 101 ? 5 : ord.totalAmount >= 51 ? 3 : 2;
       triggerNotification(
         ord.tableId,
         'order_delivered',
         '🍸 ¡Pedido de Barra Entregado!',
-        `Se han sumado $${ord.totalAmount} a tu consumo. ¡Revisa tus cupos y prioridad en el karaoke!`
+        `Se sumaron $${ord.totalAmount} a tu consumo. Tienes acceso a ${songsAllowed} canciones con prioridad actualizada.`
       );
     }
   }, [updateStateAndBroadcast, triggerNotification]);
 
-  // Cancel Order (Admin Action)
+  // Cancel Order (Admin Action with Persistent Reason)
   const cancelOrder = useCallback((orderId: string, reason?: string) => {
     updateStateAndBroadcast((prev) => {
       const orderList = prev.orders || [];
@@ -674,7 +678,13 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!target) return prev;
 
       const updatedOrders = orderList.map((o) =>
-        o.id === orderId ? { ...o, status: 'cancelled' as const } : o
+        o.id === orderId
+          ? {
+              ...o,
+              status: 'cancelled' as const,
+              cancellationReason: reason || 'Producto temporalmente no disponible en barra',
+            }
+          : o
       );
 
       return {
@@ -688,8 +698,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       triggerNotification(
         targetOrder.tableId,
         'info',
-        'Pedido Cancelado',
-        `Tu pedido en barra fue cancelado.${reason ? ` Motivo: ${reason}` : ''}`
+        'Pedido Cancelado en Barra',
+        `Tu pedido fue cancelado.${reason ? ` Motivo: ${reason}` : ''}`
       );
     }
   }, [state.orders, updateStateAndBroadcast, triggerNotification]);
@@ -708,9 +718,9 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         totalSpend !== undefined
           ? totalSpend
           : tier === 'vip_100'
-          ? Math.max(100, table.totalSpend)
+          ? Math.max(101, table.totalSpend)
           : tier === 'medium_50'
-          ? Math.max(50, table.totalSpend)
+          ? Math.max(51, table.totalSpend)
           : table.totalSpend;
 
       const newCooldown = tier === 'vip_100' || tier === 'medium_50' ? null : table.cooldownUntil;

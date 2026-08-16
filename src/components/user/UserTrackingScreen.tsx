@@ -16,6 +16,7 @@ import { LiquidGlassCard } from '../ui/LiquidGlassCard';
 import { LiquidButton } from '../ui/LiquidButton';
 import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 import { RewardsRoulette } from './RewardsRoulette';
+import { OrderTrackingBanner } from '../portal/OrderTrackingBanner';
 
 interface UserTrackingScreenProps {
   onRequestNewSong: () => void;
@@ -32,7 +33,7 @@ export const UserTrackingScreen: React.FC<UserTrackingScreenProps> = ({
     : TIER_CONFIGS.standard;
   const totalAllowed = currentTable
     ? tierConfig.maxSongs + currentTable.extraQuotaBonus
-    : 3;
+    : 2;
   const quotaUsed = currentTable ? currentTable.quotaUsed : 0;
   const quotasRemaining = Math.max(0, totalAllowed - quotaUsed);
 
@@ -59,7 +60,9 @@ export const UserTrackingScreen: React.FC<UserTrackingScreenProps> = ({
   const isOurSongPlaying = state.currentSong?.tableId === activeTableId;
 
   return (
-    <div className="w-full max-w-lg mx-auto space-y-4">
+    <div className="w-full max-w-3xl mx-auto space-y-4 animate-in fade-in duration-300">
+      {/* Persistent Order Tracking Banner */}
+      <OrderTrackingBanner />
       {/* Dynamic Hero Status Card */}
       {isOurSongPlaying ? (
         <LiquidGlassCard

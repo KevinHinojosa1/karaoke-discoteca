@@ -9,6 +9,7 @@ import {
   X,
   Smartphone,
   LogOut,
+  ShoppingBag,
 } from 'lucide-react';
 import { useKaraoke } from '../../context/KaraokeContext';
 import { LiquidGlassCard } from './LiquidGlassCard';
@@ -25,7 +26,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { currentTable, isTableAuthenticated, disconnectCurrentDevice } = useKaraoke();
+  const { state, currentTable, isTableAuthenticated, disconnectCurrentDevice } = useKaraoke();
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !currentTable) return null;
@@ -34,6 +35,8 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
   const totalQuota = config.maxSongs + currentTable.extraQuotaBonus;
   const remaining = Math.max(0, totalQuota - currentTable.quotaUsed);
   const connectedCount = (currentTable.authorizedDevices || []).length;
+
+  const tableOrders = (state.orders || []).filter((o) => o.tableId === currentTable.id);
 
   const origin = window.location.origin + window.location.pathname;
   const inviteUrl = signTableUrl(origin, currentTable.id, currentTable.sessionToken);
@@ -52,9 +55,9 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/80 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="w-full max-w-sm">
-        <LiquidGlassCard variant="elevated" className="p-5 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/85 backdrop-blur-xl animate-in fade-in duration-200">
+      <div className="w-full max-w-md max-h-[90vh] flex flex-col">
+        <LiquidGlassCard variant="elevated" className="p-5 sm:p-6 relative flex flex-col max-h-full overflow-hidden">
           {/* Close button */}
           <button
             onClick={onClose}
@@ -64,7 +67,7 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
           </button>
 
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-3 flex-shrink-0">
             <div className="w-11 h-11 rounded-2xl bg-pastel-lavender/20 border border-pastel-lavender/40 flex items-center justify-center text-pastel-lavender shadow-glow-lavender">
               <QrCode className="w-6 h-6" />
             </div>
@@ -81,8 +84,8 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
             </div>
           </div>
 
-          {/* Table Metrics Summary */}
-          <div className="space-y-2.5 my-4">
+          {/* Scrollable Content Area */}
+          <div className="overflow-y-auto space-y-2.5 pr-1 py-1 flex-1 no-scrollbar">
             {/* Tier & Priority */}
             <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
               <span className="text-xs text-slate-300">Categoría de Mesa:</span>
@@ -132,32 +135,67 @@ export const MyTableInfoModal: React.FC<MyTableInfoModalProps> = ({
                 />
               </div>
             </div>
-          </div>
 
-          {/* Share with Friends of this same table */}
-          {isTableAuthenticated && (
-            <div className="mt-3 p-3 rounded-2xl bg-purple-500/10 border border-purple-400/25 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white flex items-center gap-1.5">
+            {/* Recent Orders of this table */}
+            {tableOrders.length > 0 && (
+              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-pastel-lavender" />
+                  Pedidos de tu Mesa en Barra:
+                </span>
+                <div className="space-y-1.5">
+                  {tableOrders.map((ord) => (
+                    <div key={ord.id} className="p-2 rounded-xl bg-white/5 text-[11px] space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white">
+                          {ord.items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}
+                        </span>
+                        <span className="font-mono font-black text-emerald-400">
+                          ${ord.totalAmount}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className={ord.status === 'delivered' ? 'text-emerald-400' : ord.status === 'pending' ? 'text-amber-300' : 'text-rose-400'}>
+                          {ord.status === 'delivered' ? '🟢 Entregado' : ord.status === 'pending' ? '🟡 En preparación' : '🔴 Cancelado'}
+                        </span>
+                        <span className="text-slate-500 font-mono">
+                          {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {ord.status === 'cancelled' && ord.cancellationReason && (
+                        <div className="text-[10px] text-rose-300 bg-rose-500/10 p-1.5 rounded mt-1">
+                          Motivo: {ord.cancellationReason}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Share with Friends of this same table */}
+            {isTableAuthenticated && (
+              <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-400/25 space-y-2">
+                <span className="font-bold text-white text-xs flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-pastel-lavender" />
                   Compartir con amigos de tu mesa:
                 </span>
+                <p className="text-[11px] text-slate-300">
+                  Pasa este enlace a tus acompañantes para que conecten hasta 3 dispositivos a la mesa:
+                </p>
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-all tap-squish"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-pastel-mint" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? '¡Enlace de tu mesa copiado!' : 'Copiar enlace para tu mesa'}</span>
+                </button>
               </div>
-              <p className="text-[11px] text-slate-300">
-                Pasa este enlace a tus acompañantes para que conecten hasta 3 dispositivos a la mesa:
-              </p>
-              <button
-                onClick={handleCopyLink}
-                className="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-all tap-squish"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-pastel-mint" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? '¡Enlace de tu mesa copiado!' : 'Copiar enlace para tu mesa'}</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Disconnect or Close */}
-          <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+          <div className="mt-3 pt-3 border-t border-white/10 space-y-2 flex-shrink-0">
             {isTableAuthenticated && (
               <button
                 onClick={handleDisconnect}

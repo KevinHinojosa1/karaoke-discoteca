@@ -21,6 +21,7 @@ import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 import { requestPushPermission } from '../../utils/pushNotifications';
 
 import { HostInvitationBadge } from './HostInvitationBadge';
+import { OrderTrackingBanner } from '../portal/OrderTrackingBanner';
 
 interface SongRequestFormProps {
   onSuccessSubmitted?: () => void;
@@ -67,7 +68,7 @@ export const SongRequestForm: React.FC<SongRequestFormProps> = ({
     : TIER_CONFIGS.standard;
   const totalAllowed = currentTable
     ? tierConfig.maxSongs + currentTable.extraQuotaBonus
-    : 3;
+    : 2;
   const quotaUsed = currentTable ? currentTable.quotaUsed : 0;
   const quotasRemaining = Math.max(0, totalAllowed - quotaUsed);
   const isCooldownActive = cooldownRemainingSec > 0;
@@ -78,22 +79,27 @@ export const SongRequestForm: React.FC<SongRequestFormProps> = ({
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const handleSelectFromCatalog = (songTitle: string, songArtist: string) => {
+    setTitle(songTitle);
+    setArtist(songArtist);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
 
     if (!isTableAuthenticated) {
-      setError('Debes verificar el PIN de la mesa para poder enviar canciones.');
+      setError('Debes verificar el PIN de seguridad de tu mesa para enviar pedidos.');
       return;
     }
 
     if (!title.trim() || !artist.trim()) {
-      setError('Por favor ingresa el nombre de la canción y el artista.');
+      setError('Por favor completa el nombre de la canción y el artista.');
       return;
     }
 
-    // Try asking for browser notification permission gently
+    // Request push notification permissions on user interaction
     requestPushPermission();
 
     setLoading(true);
@@ -121,7 +127,9 @@ export const SongRequestForm: React.FC<SongRequestFormProps> = ({
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto space-y-4">
+    <div className="w-full max-w-3xl mx-auto space-y-4 animate-in fade-in duration-300">
+      {/* Persistent Order Tracking Banner */}
+      <OrderTrackingBanner />
       {/* Security Host Invitation Badge */}
       <HostInvitationBadge />
       {/* Table Status Card */}
@@ -336,10 +344,7 @@ export const SongRequestForm: React.FC<SongRequestFormProps> = ({
       <PopularSongPicker
         isOpen={showCatalog}
         onClose={() => setShowCatalog(false)}
-        onSelectSong={(songTitle, songArtist) => {
-          setTitle(songTitle);
-          setArtist(songArtist);
-        }}
+        onSelectSong={handleSelectFromCatalog}
       />
 
       <RewardsRoulette

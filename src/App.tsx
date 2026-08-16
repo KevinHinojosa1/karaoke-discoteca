@@ -112,8 +112,8 @@ export const App: React.FC = () => {
   return (
     <AmbientBackground>
       {/* Top Navigation Bar (100% Clean for customers, no admin buttons) */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-night-base/70 border-b border-white/10 px-3.5 sm:px-4 py-2.5 sm:py-3">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-night-base/70 border-b border-white/10 px-3.5 sm:px-6 lg:px-8 py-2.5 sm:py-3.5">
+        <div className="max-w-5xl lg:max-w-6xl mx-auto flex items-center justify-between gap-2">
           {/* Public Brand Logo */}
           <AppBrandLogo />
 
@@ -121,7 +121,7 @@ export const App: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowTableInfoModal(true)}
-              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 transition-all text-xs tap-squish shadow-liquid-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/15 transition-all text-xs sm:text-sm tap-squish shadow-liquid-sm"
               title="Información de tu mesa asignada"
             >
               <QrCode className="w-3.5 h-3.5 text-pastel-lavender flex-shrink-0" />
@@ -129,7 +129,7 @@ export const App: React.FC = () => {
                 {currentTable?.name || `Mesa ${activeTableId}`}
               </span>
               <span
-                className={`text-[9px] px-1.5 py-0.5 rounded font-bold border hidden xs:inline-block ${tierConfig.badgeBg}`}
+                className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded font-bold border hidden xs:inline-block ${tierConfig.badgeBg}`}
               >
                 {tierConfig.shortLabel}
               </span>
@@ -144,8 +144,8 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Customer Container */}
-      <main className="flex-1 max-w-lg w-full mx-auto px-3.5 sm:px-4 py-4 sm:py-5 pb-24 space-y-4">
+      {/* Main Customer Container (Fluid responsive across Mobile, Tablet, Desktop) */}
+      <main className="flex-1 max-w-5xl lg:max-w-6xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 pb-28 space-y-6">
         {/* 1. HOME PORTAL (Default Welcome Screen with Live Hero, Story & Combos) */}
         {customerTab === 'home' && (
           <HomePortal
