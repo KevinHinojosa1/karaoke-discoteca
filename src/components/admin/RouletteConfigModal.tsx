@@ -74,24 +74,26 @@ export const RouletteConfigModal: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <Trophy className="w-5 h-5 text-pastel-yellow" />
-            Configuración de la Ruleta de Recompensas
+            Configuración de la Ruleta
           </h3>
           <p className="text-xs text-slate-400">
-            Ajusta los premios, probabilidades y colores que verán las mesas estándar al enviar su canción.
+            Ajusta los premios y probabilidades que verán las mesas estándar.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <LiquidButton
             variant="secondary"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs"
             onClick={handleAddPrize}
-            icon={<Plus className="w-4 h-4" />}
+            icon={<Plus className="w-3.5 h-3.5" />}
           >
             Agregar Premio
           </LiquidButton>
@@ -99,8 +101,9 @@ export const RouletteConfigModal: React.FC = () => {
           <LiquidButton
             variant="lavender"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs"
             onClick={handleSave}
-            icon={<Save className="w-4 h-4" />}
+            icon={<Save className="w-3.5 h-3.5" />}
           >
             Guardar Cambios
           </LiquidButton>
@@ -109,13 +112,13 @@ export const RouletteConfigModal: React.FC = () => {
 
       {saveFeedback && (
         <div className="p-3 rounded-2xl bg-pastel-mint/15 border border-pastel-mint/30 text-pastel-mint text-xs flex items-center gap-2 animate-in fade-in">
-          <CheckCircle2 className="w-4 h-4" />
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>¡Configuración de la ruleta guardada y sincronizada en tiempo real!</span>
         </div>
       )}
 
       {/* Prizes Editor List */}
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {prizes.map((prize, idx) => {
           const probPercent =
             totalWeight > 0 && prize.active
@@ -126,46 +129,47 @@ export const RouletteConfigModal: React.FC = () => {
             <LiquidGlassCard
               key={prize.id}
               variant="subtle"
-              className={`p-4 transition-all ${
+              className={`p-3.5 sm:p-4 transition-all ${
                 prize.active ? 'border-white/15' : 'opacity-50 border-white/5'
               }`}
             >
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                {/* Active Checkbox + Color sample */}
-                <div className="md:col-span-1 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={prize.active}
-                    onChange={() => handleToggleActive(idx)}
-                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-white/10"
-                    title="Activar o desactivar premio"
-                  />
-                  <div
-                    className="w-5 h-5 rounded-full border border-white/40 shadow-sm flex-shrink-0"
-                    style={{ backgroundColor: prize.color }}
-                  />
-                </div>
+              <div className="flex flex-col md:grid md:grid-cols-12 gap-3 items-stretch md:items-center">
+                {/* Active Checkbox + Color sample + Title row on mobile */}
+                <div className="md:col-span-5 flex items-start gap-2.5">
+                  <div className="flex items-center gap-2 pt-2 md:pt-0">
+                    <input
+                      type="checkbox"
+                      checked={prize.active}
+                      onChange={() => handleToggleActive(idx)}
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-white/10"
+                      title="Activar o desactivar premio"
+                    />
+                    <div
+                      className="w-5 h-5 rounded-full border border-white/40 shadow-sm flex-shrink-0"
+                      style={{ backgroundColor: prize.color }}
+                    />
+                  </div>
 
-                {/* Title & Description */}
-                <div className="md:col-span-4 space-y-1">
-                  <input
-                    type="text"
-                    value={prize.title}
-                    onChange={(e) => handleUpdateField(idx, 'title', e.target.value)}
-                    placeholder="Título del premio"
-                    className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs focus:outline-none focus:border-pastel-lavender"
-                  />
-                  <input
-                    type="text"
-                    value={prize.description}
-                    onChange={(e) => handleUpdateField(idx, 'description', e.target.value)}
-                    placeholder="Descripción"
-                    className="w-full px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[11px] focus:outline-none focus:border-pastel-lavender"
-                  />
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="text"
+                      value={prize.title}
+                      onChange={(e) => handleUpdateField(idx, 'title', e.target.value)}
+                      placeholder="Título del premio"
+                      className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs focus:outline-none focus:border-pastel-lavender"
+                    />
+                    <input
+                      type="text"
+                      value={prize.description}
+                      onChange={(e) => handleUpdateField(idx, 'description', e.target.value)}
+                      placeholder="Descripción"
+                      className="w-full px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[11px] focus:outline-none focus:border-pastel-lavender"
+                    />
+                  </div>
                 </div>
 
                 {/* Prize Type */}
-                <div className="md:col-span-3">
+                <div className="md:col-span-4">
                   <label className="block text-[10px] text-slate-400 mb-0.5">Tipo de Recompensa</label>
                   <select
                     value={prize.type}
@@ -179,29 +183,29 @@ export const RouletteConfigModal: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Probability Weight & Calculated % */}
-                <div className="md:col-span-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <label className="block text-[10px] text-slate-400 mb-0.5">Peso Probabilidad</label>
-                    <div className="flex items-center gap-2">
+                {/* Probability Weight & Calculated % & Delete */}
+                <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t border-white/5 md:border-t-0">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 mb-0.5 md:hidden">Peso</label>
                       <input
                         type="number"
                         min="1"
                         max="100"
                         value={prize.weight}
                         onChange={(e) => handleUpdateField(idx, 'weight', parseInt(e.target.value) || 1)}
-                        className="w-16 px-2 py-1 rounded-xl bg-white/5 border border-white/10 text-white text-xs text-center font-bold"
+                        className="w-14 sm:w-16 px-2 py-1 rounded-xl bg-white/5 border border-white/10 text-white text-xs text-center font-bold"
                       />
-                      <span className="text-xs font-bold text-pastel-mint bg-pastel-mint/15 px-2 py-0.5 rounded-lg border border-pastel-mint/30">
-                        {probPercent}%
-                      </span>
                     </div>
+                    <span className="text-xs font-bold text-pastel-mint bg-pastel-mint/15 px-2 py-1 rounded-lg border border-pastel-mint/30">
+                      {probPercent}%
+                    </span>
                   </div>
 
                   {/* Delete */}
                   <button
                     onClick={() => handleDeletePrize(idx)}
-                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 mt-3"
+                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 tap-squish"
                     title="Eliminar premio"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

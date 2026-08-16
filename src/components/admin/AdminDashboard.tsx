@@ -45,120 +45,124 @@ export const AdminDashboard: React.FC = () => {
     setActiveView('user');
   };
 
+  const tabs = [
+    { id: 'queue', label: 'Cola en Vivo', icon: <ListMusic className="w-4 h-4" /> },
+    { id: 'tables', label: 'Mesas y Consumo', icon: <Users className="w-4 h-4" /> },
+    { id: 'roulette', label: 'Ruleta', icon: <Trophy className="w-4 h-4" /> },
+    { id: 'qrcodes', label: 'Códigos QR', icon: <QrCode className="w-4 h-4" /> },
+    { id: 'history', label: 'Historial', icon: <History className="w-4 h-4" /> },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Top Bar with Brand & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-white/10">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-pastel-lavender/20 text-pastel-lavender border border-pastel-lavender/30">
+            <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-pastel-lavender/20 text-pastel-lavender border border-pastel-lavender/30">
               PANEL DE CONTROL
             </span>
-            <span className="text-xs text-slate-400">DJ & Staff Bar</span>
+            <span className="text-[10px] sm:text-xs text-slate-400">DJ & Staff Bar</span>
           </div>
-          <h1 className="text-2xl font-black text-white mt-1">
-            Karaoke Night Club — Master Control
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white mt-1">
+            Karaoke Master Control
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Open Stage Mode in New Tab or Switch */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Open Stage Mode */}
           <LiquidButton
             variant="secondary"
             size="sm"
+            className="flex-1 sm:flex-initial"
             onClick={() => setActiveView('stage')}
             icon={<Tv className="w-4 h-4 text-pastel-sky" />}
           >
-            Modo Pantalla Gigante / TV
+            <span className="hidden xs:inline">Modo </span>Pantalla TV
           </LiquidButton>
 
           <LiquidButton
             variant="ghost"
             size="sm"
+            className="flex-1 sm:flex-initial"
             onClick={handleLogout}
             icon={<LogOut className="w-4 h-4 text-rose-400" />}
           >
-            Salir al Modo Usuario
+            Salir
           </LiquidButton>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {/* Metrics Row (Fluid Responsive Grid) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3.5">
         {/* Metric 1: In Queue */}
-        <LiquidGlassCard variant="subtle" className="p-4">
+        <LiquidGlassCard variant="subtle" className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">En Cola</span>
-            <ListMusic className="w-4 h-4 text-pastel-lavender" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400 truncate">En Cola</span>
+            <ListMusic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pastel-lavender flex-shrink-0" />
           </div>
-          <div className="text-2xl font-black text-white mt-1">
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">
             {totalInQueue}
           </div>
-          <span className="text-[10px] text-pastel-lavender">canciones pendientes</span>
+          <span className="text-[9px] sm:text-[10px] text-pastel-lavender block truncate">canciones en fila</span>
         </LiquidGlassCard>
 
         {/* Metric 2: Avg Wait Time */}
-        <LiquidGlassCard variant="subtle" className="p-4">
+        <LiquidGlassCard variant="subtle" className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Espera Promedio</span>
-            <Clock className="w-4 h-4 text-pastel-pink" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400 truncate">Espera Aprox</span>
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pastel-pink flex-shrink-0" />
           </div>
-          <div className="text-2xl font-black text-white mt-1">
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">
             ~{avgWaitMinutes} <span className="text-xs font-normal text-slate-400">min</span>
           </div>
-          <span className="text-[10px] text-pastel-pink">para la última canción</span>
+          <span className="text-[9px] sm:text-[10px] text-pastel-pink block truncate">último turno</span>
         </LiquidGlassCard>
 
         {/* Metric 3: Active Tables */}
-        <LiquidGlassCard variant="subtle" className="p-4">
+        <LiquidGlassCard variant="subtle" className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Mesas Activas</span>
-            <Users className="w-4 h-4 text-pastel-mint" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400 truncate">Mesas</span>
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pastel-mint flex-shrink-0" />
           </div>
-          <div className="text-2xl font-black text-white mt-1">
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">
             {activeTablesCount}
           </div>
-          <span className="text-[10px] text-pastel-mint">mesas registradas</span>
+          <span className="text-[9px] sm:text-[10px] text-pastel-mint block truncate">mesas activas</span>
         </LiquidGlassCard>
 
         {/* Metric 4: VIP Tables */}
-        <LiquidGlassCard variant="subtle" className="p-4">
+        <LiquidGlassCard variant="subtle" className="p-3 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Mesas VIP / Consumo</span>
-            <TrendingUp className="w-4 h-4 text-amber-300" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400 truncate">Mesas VIP</span>
+            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 flex-shrink-0" />
           </div>
-          <div className="text-2xl font-black text-white mt-1">
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">
             {vipTablesCount}
           </div>
-          <span className="text-[10px] text-amber-300">prioridad preferente</span>
+          <span className="text-[9px] sm:text-[10px] text-amber-300 block truncate">consumo alto</span>
         </LiquidGlassCard>
 
         {/* Metric 5: Sung History */}
-        <LiquidGlassCard variant="subtle" className="p-4 col-span-2 lg:col-span-1">
+        <LiquidGlassCard variant="subtle" className="p-3 sm:p-4 col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Cantadas Hoy</span>
-            <Mic2 className="w-4 h-4 text-pastel-sky" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400 truncate">Cantadas Hoy</span>
+            <Mic2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pastel-sky flex-shrink-0" />
           </div>
-          <div className="text-2xl font-black text-white mt-1">
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">
             {totalSung}
           </div>
-          <span className="text-[10px] text-pastel-sky">shows completados</span>
+          <span className="text-[9px] sm:text-[10px] text-pastel-sky block truncate">canciones finalizadas</span>
         </LiquidGlassCard>
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto pb-2 no-scrollbar">
-        {[
-          { id: 'queue', label: 'Cola en Vivo (DJ)', icon: <ListMusic className="w-4 h-4" /> },
-          { id: 'tables', label: 'Mesas y Consumo', icon: <Users className="w-4 h-4" /> },
-          { id: 'roulette', label: 'Configurar Ruleta', icon: <Trophy className="w-4 h-4" /> },
-          { id: 'qrcodes', label: 'Códigos QR Mesas', icon: <QrCode className="w-4 h-4" /> },
-          { id: 'history', label: 'Historial Cantadas', icon: <History className="w-4 h-4" /> },
-        ].map((tab) => (
+      {/* Tabs Navigation (Responsive Horizontal Scrollable Container) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-white/10 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 no-scrollbar">
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all tap-squish ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 whitespace-nowrap transition-all tap-squish flex-shrink-0 ${
               activeTab === tab.id
                 ? 'bg-pastel-lavender/25 text-pastel-lavender border border-pastel-lavender/40 shadow-glow-lavender'
                 : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 hover:bg-white/10'
@@ -170,7 +174,7 @@ export const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content Area */}
       <div className="mt-4">
         {activeTab === 'queue' && <QueueManager />}
         {activeTab === 'tables' && <TableManager />}

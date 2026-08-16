@@ -97,34 +97,36 @@ export const TableManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header & Quick Add */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-pastel-mint" />
-            Gestión de Mesas, Consumo y Seguridad
+            Gestión de Mesas y Seguridad
           </h3>
           <p className="text-xs text-slate-400">
-            Asigna consumo, gestiona los PINs de seguridad anti-suplantación y controla las sesiones activas.
+            Asigna consumo, gestiona los PINs anti-suplantación y controla las sesiones activas.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <LiquidButton
             variant="secondary"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs"
             onClick={handleRotateAllNight}
-            icon={<RefreshCw className="w-4 h-4 text-pastel-yellow" />}
+            icon={<RefreshCw className="w-3.5 h-3.5 text-pastel-yellow" />}
           >
-            Iniciar Nueva Noche (Rotar Todo)
+            <span className="hidden xs:inline">Iniciar </span>Nueva Noche
           </LiquidButton>
 
           <LiquidButton
             variant="lavender"
             size="sm"
+            className="flex-1 sm:flex-initial text-xs"
             onClick={() => setShowAddForm(!showAddForm)}
-            icon={<Plus className="w-4 h-4" />}
+            icon={<Plus className="w-3.5 h-3.5" />}
           >
             {showAddForm ? 'Cerrar' : 'Agregar Mesa'}
           </LiquidButton>
@@ -133,7 +135,7 @@ export const TableManager: React.FC = () => {
 
       {/* Add Table Form */}
       {showAddForm && (
-        <LiquidGlassCard variant="lavender" className="p-5 animate-in slide-in-from-top duration-300">
+        <LiquidGlassCard variant="lavender" className="p-4 sm:p-5 animate-in slide-in-from-top duration-300">
           <form onSubmit={handleAddTable} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -170,8 +172,8 @@ export const TableManager: React.FC = () => {
         </LiquidGlassCard>
       )}
 
-      {/* Tables Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Tables Grid (Adaptive columns: 1 on mobile, 2 on tablet, 3 on desktop) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {tablesList.map((table) => {
           const config = TIER_CONFIGS[table.tier];
           const totalQuota = config.maxSongs + table.extraQuotaBonus;
@@ -184,23 +186,23 @@ export const TableManager: React.FC = () => {
             <LiquidGlassCard
               key={table.id}
               variant={table.tier === 'vip_100' ? 'lavender' : 'subtle'}
-              className="p-5 relative group transition-all hover:border-white/25 flex flex-col justify-between"
+              className="p-4 sm:p-5 relative group transition-all hover:border-white/25 flex flex-col justify-between"
             >
               <div>
                 {/* Top info */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-extrabold text-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm sm:text-base font-extrabold text-white truncate">
                         {table.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono bg-white/5 px-1.5 py-0.5 rounded">
+                      <span className="text-[9px] text-slate-400 font-mono bg-white/5 px-1.5 py-0.5 rounded">
                         {table.id}
                       </span>
                     </div>
 
                     {/* Spend Editor */}
-                    <div className="mt-1 flex items-center gap-2 text-xs">
+                    <div className="mt-1 flex items-center gap-1 text-xs">
                       {isEditingSpend ? (
                         <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-slate-400 font-bold">$</span>
@@ -209,7 +211,7 @@ export const TableManager: React.FC = () => {
                             autoFocus
                             value={spendValue}
                             onChange={(e) => setSpendValue(e.target.value)}
-                            className="w-20 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-white text-xs"
+                            className="w-16 sm:w-20 px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-white text-xs"
                             placeholder="Monto"
                           />
                           <button
@@ -243,20 +245,20 @@ export const TableManager: React.FC = () => {
 
                   {/* Badge */}
                   <span
-                    className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${config.badgeBg}`}
+                    className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-bold border flex-shrink-0 ${config.badgeBg}`}
                   >
                     {config.shortLabel}
                   </span>
                 </div>
 
                 {/* Quota Progress */}
-                <div className="mt-4 p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-slate-400">Cupos utilizados:</span>
+                <div className="mt-3.5 p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-400">Cupos:</span>
                     <span className="font-bold text-white">
                       {quotaUsed} / {totalQuota}{' '}
-                      <span className="text-pastel-mint text-[11px]">
-                        ({remaining} restantes)
+                      <span className="text-pastel-mint text-[10px] sm:text-[11px]">
+                        ({remaining} libres)
                       </span>
                     </span>
                   </div>
@@ -269,21 +271,21 @@ export const TableManager: React.FC = () => {
                 </div>
 
                 {/* Security PIN & Session Control Box */}
-                <div className="mt-3 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+                <div className="mt-3 p-2.5 sm:p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-pastel-lavender" />
+                    <ShieldCheck className="w-4 h-4 text-pastel-lavender flex-shrink-0" />
                     <div>
-                      <span className="text-[10px] text-slate-400 block">PIN de Mesa (4 dígitos):</span>
-                      <span className="font-mono font-bold text-white tracking-widest text-sm">
+                      <span className="text-[10px] text-slate-400 block">PIN Seguridad:</span>
+                      <span className="font-mono font-bold text-white tracking-widest text-xs sm:text-sm">
                         {isPinRevealed ? table.pin : '••••'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => toggleRevealPin(table.id)}
-                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white tap-squish"
                       title={isPinRevealed ? 'Ocultar PIN' : 'Ver PIN'}
                     >
                       {isPinRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -313,68 +315,68 @@ export const TableManager: React.FC = () => {
 
                 {/* Fast Action Tier Switcher Buttons */}
                 <div className="mt-3">
-                  <span className="block text-[11px] font-semibold text-slate-400 mb-1.5">
+                  <span className="block text-[10px] sm:text-[11px] font-semibold text-slate-400 mb-1.5">
                     Cambio rápido de categoría:
                   </span>
                   <div className="grid grid-cols-3 gap-1.5">
                     {/* VIP $100+ */}
                     <button
                       onClick={() => setTableTier(table.id, 'vip_100')}
-                      className={`px-2 py-1.5 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center border ${
+                      className={`px-1.5 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all flex flex-col items-center justify-center border tap-squish ${
                         table.tier === 'vip_100'
                           ? 'bg-amber-400/30 text-amber-200 border-amber-300/50 shadow-glow-yellow'
                           : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                       }`}
                     >
-                      <Crown className="w-3 h-3 mb-0.5" />
+                      <Crown className="w-3 h-3 mb-0.5 text-amber-300" />
                       <span>VIP $100+</span>
                     </button>
 
                     {/* Medium $50-$99 */}
                     <button
                       onClick={() => setTableTier(table.id, 'medium_50')}
-                      className={`px-2 py-1.5 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center border ${
+                      className={`px-1.5 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all flex flex-col items-center justify-center border tap-squish ${
                         table.tier === 'medium_50'
                           ? 'bg-purple-400/30 text-purple-200 border-purple-300/50 shadow-glow-lavender'
                           : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                       }`}
                     >
-                      <Sparkles className="w-3 h-3 mb-0.5" />
+                      <Sparkles className="w-3 h-3 mb-0.5 text-pastel-lavender" />
                       <span>Medio $50</span>
                     </button>
 
                     {/* Standard */}
                     <button
                       onClick={() => setTableTier(table.id, 'standard')}
-                      className={`px-2 py-1.5 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center border ${
+                      className={`px-1.5 py-1.5 rounded-xl text-[9px] sm:text-[10px] font-bold transition-all flex flex-col items-center justify-center border tap-squish ${
                         table.tier === 'standard'
                           ? 'bg-slate-600/40 text-slate-200 border-slate-400/40'
                           : 'bg-white/5 text-slate-400 hover:text-white border-white/10 hover:bg-white/10'
                       }`}
                     >
                       <span>🎵 Estándar</span>
-                      <span className="text-[8px] opacity-75">&lt; $100</span>
+                      <span className="text-[7px] sm:text-[8px] opacity-75">&lt; $100</span>
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Bottom Quick Test / Simulation Link */}
-              <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+              <div className="mt-3.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
                 <button
                   onClick={() => handleOpenAsUser(table.id)}
                   className="text-xs text-pastel-lavender hover:underline flex items-center gap-1 font-semibold"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  Abrir vista de esta mesa
+                  Abrir mesa
                 </button>
 
                 {table.isLocked ? (
-                  <span className="text-[10px] text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/30 font-bold">
+                  <span className="text-[9px] text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/30 font-bold">
                     Bloqueada
                   </span>
                 ) : table.cooldownUntil && table.cooldownUntil > Date.now() ? (
-                  <span className="text-[10px] text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">
+                  <span className="text-[9px] text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30">
                     Timer activo
                   </span>
                 ) : null}
