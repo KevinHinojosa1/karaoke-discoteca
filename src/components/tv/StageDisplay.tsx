@@ -64,7 +64,7 @@ export const StageDisplay: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl md:text-2xl font-black tracking-tight bg-gradient-to-r from-white via-pastel-lavender to-pastel-pink bg-clip-text text-transparent">
-                  KARAOKE NIGHT CLUB
+                  KARAOKE HINOJOSA
                 </h1>
                 <span className="text-xs uppercase font-extrabold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
                   EN VIVO

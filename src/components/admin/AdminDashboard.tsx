@@ -65,7 +65,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="text-[10px] sm:text-xs text-slate-400">DJ & Staff Bar</span>
           </div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white mt-1">
-            Karaoke Master Control
+            Karaoke Hinojosa — Master Control
           </h1>
         </div>
 

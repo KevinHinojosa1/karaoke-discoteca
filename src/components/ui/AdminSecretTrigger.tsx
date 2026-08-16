@@ -51,7 +51,7 @@ export const AdminSecretTrigger: React.FC<AdminSecretTriggerProps> = ({
       <div
         onClick={handleLogoClick}
         className="group relative cursor-pointer select-none flex items-center gap-2.5 p-1.5 rounded-2xl transition-all duration-300 hover:bg-white/5 active:scale-95"
-        title="KARAOKE NIGHT CLUB"
+        title="KARAOKE HINOJOSA"
       >
         <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-pastel-lavender/30 via-pastel-pink/20 to-pastel-sky/30 border border-white/20 flex items-center justify-center shadow-liquid-sm group-hover:border-white/40 transition-all">
           <Mic2 className="w-5 h-5 text-pastel-lavender group-hover:scale-110 transition-transform" />
@@ -60,14 +60,14 @@ export const AdminSecretTrigger: React.FC<AdminSecretTriggerProps> = ({
         <div className="flex flex-col text-left">
           <div className="flex items-center gap-1.5">
             <span className="text-base font-extrabold tracking-tight bg-gradient-to-r from-slate-100 via-pastel-lavender to-pastel-pink bg-clip-text text-transparent">
-              KARAOKE
+              HINOJOSA
             </span>
             <span className="text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded-md bg-pastel-lavender/15 text-pastel-lavender border border-pastel-lavender/25">
               LIVE
             </span>
           </div>
           <span className="text-[10px] text-slate-400 font-medium tracking-wide">
-            Night Club Digital
+            Karaoke Digital
           </span>
         </div>
       </div>
