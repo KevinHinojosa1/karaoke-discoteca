@@ -221,7 +221,7 @@ export const StageDisplay: React.FC = () => {
 
       {/* Footer */}
       <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs text-slate-500 relative z-10">
-        <span>Sistema de Karaoke Digital Liquid Glass (Apple 2025)</span>
+        <span>Karaoke Night Club • Sistema Digital</span>
         <span>Prioridad inteligente por consumo de mesa</span>
       </div>
     </div>

@@ -150,7 +150,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-4 text-center text-[11px] text-slate-500 max-w-md mx-auto px-4">
-        <span>Karaoke Night Club • Sistema Digital Liquid Glass</span>
+        <span>Karaoke Night Club • Sistema Digital</span>
         <div className="text-[10px] text-slate-600 mt-0.5">
           Doble clic en el logo para acceso administrativo
         </div>
