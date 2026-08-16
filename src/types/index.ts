@@ -111,6 +111,39 @@ export interface CreditNote {
   }[];
 }
 
+export interface InvoiceCustomer {
+  type: 'final_consumer' | 'with_data';
+  taxId: string; // Cédula / RUC (e.g. 9999999999999 or 0928374651001)
+  name: string; // e.g. "Consumidor Final" or "Kevin Hinojosa"
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface InvoiceItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface Invoice {
+  id: string; // e.g. "FAC-001-001-000000101"
+  tableId: string;
+  tableName: string;
+  orderIds?: string[];
+  customer: InvoiceCustomer;
+  items: InvoiceItem[];
+  subtotal: number;
+  taxRate: number; // 0.15 (15% IVA)
+  taxAmount: number;
+  tipAmount?: number;
+  total: number;
+  paymentMethod: 'cash' | 'credit_card' | 'debit_card' | 'transfer';
+  createdAt: number;
+  issuedBy: string;
+}
+
 export interface AppNotification {
   id: string;
   tableId: string;
@@ -135,6 +168,7 @@ export interface KaraokeState {
   history: SongRequest[];
   orders: BarOrder[];
   creditNotes: CreditNote[];
+  invoices: Invoice[];
   prizes: RoulettePrize[];
   notifications: AppNotification[];
   cooldownDefaultMinutes: number;

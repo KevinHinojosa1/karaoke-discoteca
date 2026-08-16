@@ -16,12 +16,14 @@ import {
   RotateCcw,
   X,
   Save,
+  Receipt,
 } from 'lucide-react';
 import { useKaraoke } from '../../context/KaraokeContext';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
 import { LiquidButton } from '../ui/LiquidButton';
 import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 import { ConsumptionTier, Table } from '../../types';
+import { InvoiceModal } from './InvoiceModal';
 
 export const TableManager: React.FC = () => {
   const {
@@ -47,6 +49,7 @@ export const TableManager: React.FC = () => {
 
   // Full Table Edit Modal State
   const [selectedTableForEdit, setSelectedTableForEdit] = useState<Table | null>(null);
+  const [selectedTableForInvoice, setSelectedTableForInvoice] = useState<Table | null>(null);
   const [editName, setEditName] = useState('');
   const [editSpend, setEditSpend] = useState('');
   const [editTier, setEditTier] = useState<ConsumptionTier>('standard');
@@ -472,13 +475,24 @@ export const TableManager: React.FC = () => {
                   </button>
                 </div>
 
-                <button
-                  onClick={() => handleOpenAsUser(table.id)}
-                  className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
-                  title="Abrir como cliente de esta mesa"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setSelectedTableForInvoice(table)}
+                    className="px-2 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold flex items-center gap-1 transition-all tap-squish"
+                    title="Facturar consumo total de esta mesa"
+                  >
+                    <Receipt className="w-3 h-3" />
+                    <span>Facturar</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleOpenAsUser(table.id)}
+                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                    title="Abrir como cliente de esta mesa"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </LiquidGlassCard>
           );
@@ -603,6 +617,13 @@ export const TableManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Invoice Modal for Tables */}
+      <InvoiceModal
+        isOpen={Boolean(selectedTableForInvoice)}
+        onClose={() => setSelectedTableForInvoice(null)}
+        table={selectedTableForInvoice}
+      />
     </div>
   );
 };

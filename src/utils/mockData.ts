@@ -475,6 +475,64 @@ export const INITIAL_CREDIT_NOTES: import('../types').CreditNote[] = [
   },
 ];
 
+export const INITIAL_INVOICES: import('../types').Invoice[] = [
+  {
+    id: 'FAC-001-001-000000101',
+    tableId: 'VIP-01',
+    tableName: 'Mesa VIP 1 (Palco)',
+    customer: {
+      type: 'final_consumer',
+      taxId: '9999999999999',
+      name: 'Consumidor Final',
+    },
+    items: [
+      {
+        name: 'Combo Johnnie Walker Black Label',
+        quantity: 1,
+        unitPrice: 95.65,
+        total: 95.65,
+      },
+    ],
+    subtotal: 95.65,
+    taxRate: 0.15,
+    taxAmount: 14.35,
+    tipAmount: 0,
+    total: 110.00,
+    paymentMethod: 'credit_card',
+    createdAt: Date.now() - 1000 * 60 * 60 * 2,
+    issuedBy: 'Cajero Principal (Kevin)',
+  },
+  {
+    id: 'FAC-001-001-000000102',
+    tableId: 'VIP-02',
+    tableName: 'Mesa VIP 2',
+    customer: {
+      type: 'with_data',
+      taxId: '0928374651001',
+      name: 'Carlos Mendoza S.A.',
+      email: 'facturas@carlosmendoza.com',
+      phone: '0987654321',
+      address: 'Av. Samborondón Km 2.5',
+    },
+    items: [
+      {
+        name: 'Combo Jagermeister Frenesí',
+        quantity: 1,
+        unitPrice: 82.61,
+        total: 82.61,
+      },
+    ],
+    subtotal: 82.61,
+    taxRate: 0.15,
+    taxAmount: 12.39,
+    tipAmount: 0,
+    total: 95.00,
+    paymentMethod: 'transfer',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 5,
+    issuedBy: 'Cajero Principal (Kevin)',
+  },
+];
+
 export const INITIAL_PRIZES: RoulettePrize[] = [
   {
     id: 'prize-time-10',

@@ -4,6 +4,7 @@ import {
   BarOrder,
   ConsumptionTier,
   CreditNote,
+  Invoice,
   KaraokeState,
   RoulettePrize,
   SongRequest,
@@ -13,6 +14,7 @@ import {
 import {
   INITIAL_CREDIT_NOTES,
   INITIAL_CURRENT_SONG,
+  INITIAL_INVOICES,
   INITIAL_ORDERS,
   INITIAL_PRIZES,
   INITIAL_QUEUE,
@@ -54,6 +56,8 @@ interface KaraokeContextType {
   deleteOrder: (orderId: string) => void;
   issueCreditNote: (orderId: string, refundAmount: number, reason: string, authorizedBy?: string) => { success: boolean; error?: string; creditNoteId?: string };
   deleteCreditNote: (creditNoteId: string) => void;
+  generateInvoice: (invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => { success: boolean; invoiceId: string };
+  deleteInvoice: (invoiceId: string) => void;
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
   editTable: (tableId: string, updatedData: Partial<Table>) => void;
   deleteTable: (tableId: string) => void;
@@ -69,7 +73,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v9';
+const STORAGE_KEY = 'karaoke_discoteca_state_v10';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -94,6 +98,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...parsed,
           orders: parsed.orders || INITIAL_ORDERS,
           creditNotes: parsed.creditNotes || INITIAL_CREDIT_NOTES,
+          invoices: parsed.invoices || INITIAL_INVOICES,
           currentTableId: initialTableParam in parsed.tables ? initialTableParam : 'M-04',
           activeView: urlParams.get('view') === 'admin' ? 'admin' : urlParams.get('view') === 'stage' ? 'stage' : 'user',
           deviceAuthorizations: parsed.deviceAuthorizations || initialAuths,
@@ -110,6 +115,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       history: [],
       orders: INITIAL_ORDERS,
       creditNotes: INITIAL_CREDIT_NOTES,
+      invoices: INITIAL_INVOICES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -185,6 +191,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             history: incoming.history,
             orders: incoming.orders || prev.orders,
             creditNotes: incoming.creditNotes || prev.creditNotes,
+            invoices: incoming.invoices || prev.invoices,
             prizes: incoming.prizes || prev.prizes,
             notifications: incoming.notifications || prev.notifications,
           };
@@ -903,6 +910,33 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [updateStateAndBroadcast]);
 
+  // Generate Electronic / Final Consumer Invoice
+  const generateInvoice = useCallback((invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => {
+    const count = (state.invoices || []).length + 1;
+    const invId = `FAC-001-001-${count.toString().padStart(9, '0')}`;
+
+    const newInvoice: Invoice = {
+      ...invoiceData,
+      id: invId,
+      createdAt: Date.now(),
+    };
+
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      invoices: [newInvoice, ...(prev.invoices || [])],
+    }));
+
+    return { success: true, invoiceId: invId };
+  }, [state.invoices, updateStateAndBroadcast]);
+
+  // Delete Invoice
+  const deleteInvoice = useCallback((invoiceId: string) => {
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      invoices: (prev.invoices || []).filter((i) => i.id !== invoiceId),
+    }));
+  }, [updateStateAndBroadcast]);
+
   // Set Table Tier / Spend (DJ action)
   const setTableTier = useCallback((
     tableId: string,
@@ -1292,6 +1326,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       history: [],
       orders: INITIAL_ORDERS,
       creditNotes: INITIAL_CREDIT_NOTES,
+      invoices: INITIAL_INVOICES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -1340,6 +1375,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteOrder,
         issueCreditNote,
         deleteCreditNote,
+        generateInvoice,
+        deleteInvoice,
         setTableTier,
         editTable,
         deleteTable,
