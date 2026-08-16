@@ -18,6 +18,7 @@ import { sortQueueByPriority, syncQueueWithTableTiers, TIER_CONFIGS } from '../u
 import { soundManager } from '../utils/audio';
 import { sendBrowserNotification } from '../utils/pushNotifications';
 import { generateSessionToken, generateTablePin, getOrCreateDeviceId } from '../utils/security';
+import { cloudSync } from '../utils/cloudSync';
 
 const MAX_DEVICES_PER_TABLE = 3;
 
@@ -53,19 +54,22 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v5';
+const STORAGE_KEY = 'karaoke_discoteca_state_v6';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
 
 export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Device unique identifier
+  const deviceId = useMemo(() => getOrCreateDeviceId(), []);
+
   // Parse URL parameters for initial table and token auth
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const initialTableParam = urlParams.get('mesa') || 'M-04';
   const initialAuthToken = urlParams.get('auth');
 
   const [state, setState] = useState<KaraokeState>(() => {
-    // NO table is pre-authenticated by default! Every table requires PIN or valid QR token
+    // Empty initial auths - strictly requires PIN
     const initialAuths: Record<string, TableDeviceAuth> = {};
 
     try {
@@ -102,9 +106,27 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
 
-  // Broadcast channel for real-time synchronization between tabs
+  // Broadcast channel for tabs on the SAME device
   const [channel, setChannel] = useState<BroadcastChannel | null>(null);
 
+  // Save to localStorage, Local BroadcastChannel and Cloud WebSocket Relay
+  const updateStateAndBroadcast = useCallback((updater: (prev: KaraokeState) => KaraokeState) => {
+    setState((prev) => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        if (channel) {
+          channel.postMessage({ type: 'STATE_SYNC', payload: next });
+        }
+        cloudSync.broadcastState(next, deviceId);
+      } catch (err) {
+        console.error('Error broadcasting state:', err);
+      }
+      return next;
+    });
+  }, [channel, deviceId]);
+
+  // Local BroadcastChannel Listener
   useEffect(() => {
     if ('BroadcastChannel' in window) {
       const bc = new BroadcastChannel(BROADCAST_NAME);
@@ -116,7 +138,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ...event.data.payload,
             activeView: prev.activeView,
             currentTableId: prev.currentTableId,
-            deviceAuthorizations: prev.deviceAuthorizations, // Keep local device auth
+            deviceAuthorizations: prev.deviceAuthorizations,
           }));
         }
       };
@@ -127,27 +149,46 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Save to localStorage and broadcast whenever state changes
-  const updateStateAndBroadcast = useCallback((updater: (prev: KaraokeState) => KaraokeState) => {
-    setState((prev) => {
-      const next = updater(prev);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        if (channel) {
-          channel.postMessage({ type: 'STATE_SYNC', payload: next });
-        }
-      } catch (err) {
-        console.error('Error broadcasting state:', err);
+  // Global Realtime Cloud Sync across different physical devices (PC + Phones)
+  useEffect(() => {
+    cloudSync.init((msg) => {
+      if (msg.senderDeviceId === deviceId) return;
+
+      if (msg.type === 'STATE_UPDATE' && msg.payload) {
+        setState((prev) => {
+          const incoming = msg.payload as KaraokeState;
+          if (!incoming || !incoming.tables) return prev;
+
+          // Merge incoming global tables (including authorizedDevices list) and global queue
+          return {
+            ...prev,
+            tables: incoming.tables,
+            queue: incoming.queue,
+            currentSong: incoming.currentSong,
+            history: incoming.history,
+            prizes: incoming.prizes || prev.prizes,
+            notifications: incoming.notifications || prev.notifications,
+            // Keep local view and local table selection unless requested
+          };
+        });
+      } else if (msg.type === 'REQUEST_SYNC') {
+        setState((current) => {
+          // If we have state, broadcast back
+          cloudSync.broadcastState(current, deviceId);
+          return current;
+        });
       }
-      return next;
     });
-  }, [channel]);
+
+    return () => {
+      cloudSync.disconnect();
+    };
+  }, [deviceId]);
 
   // Check URL Token Authentication on Mount with max 3 devices check
   useEffect(() => {
     if (initialAuthToken && state.tables[initialTableParam]) {
       const targetTable = state.tables[initialTableParam];
-      const deviceId = getOrCreateDeviceId();
 
       if (targetTable.sessionToken === initialAuthToken && !targetTable.isLocked) {
         const authorizedList = targetTable.authorizedDevices || [];
@@ -180,11 +221,10 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     }
-  }, [initialAuthToken, initialTableParam, updateStateAndBroadcast]);
+  }, [initialAuthToken, initialTableParam, deviceId, updateStateAndBroadcast]);
 
   const activeTableId = state.currentTableId;
   const currentTable = state.tables[activeTableId];
-  const deviceId = getOrCreateDeviceId();
 
   // Device Authentication State for current table (requires token match & active device auth)
   const currentDeviceAuth = state.deviceAuthorizations?.[activeTableId];
@@ -233,9 +273,8 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }
 
-    const devId = getOrCreateDeviceId();
     const currentDevices = table.authorizedDevices || [];
-    const isAlreadyConnected = currentDevices.includes(devId);
+    const isAlreadyConnected = currentDevices.includes(deviceId);
 
     // Enforce Max 3 Devices per table
     if (!isAlreadyConnected && currentDevices.length >= MAX_DEVICES_PER_TABLE) {
@@ -246,7 +285,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }
 
-    const updatedDevices = isAlreadyConnected ? currentDevices : [...currentDevices, devId];
+    const updatedDevices = isAlreadyConnected ? currentDevices : [...currentDevices, deviceId];
 
     // Success! Authorize device
     soundManager.playVictoryFanfare();
@@ -278,11 +317,10 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     return { success: true };
-  }, [state.tables, updateStateAndBroadcast]);
+  }, [state.tables, deviceId, updateStateAndBroadcast]);
 
   // Disconnect Current Device from table
   const disconnectCurrentDevice = useCallback((tableId: string) => {
-    const devId = getOrCreateDeviceId();
     updateStateAndBroadcast((prev) => {
       const table = prev.tables[tableId];
       const newAuths = { ...prev.deviceAuthorizations };
@@ -290,7 +328,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       if (!table) return { ...prev, deviceAuthorizations: newAuths };
 
-      const updatedDevices = (table.authorizedDevices || []).filter((d) => d !== devId);
+      const updatedDevices = (table.authorizedDevices || []).filter((d) => d !== deviceId);
       const updatedTable = { ...table, authorizedDevices: updatedDevices };
 
       return {
@@ -299,7 +337,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deviceAuthorizations: newAuths,
       };
     });
-  }, [updateStateAndBroadcast]);
+  }, [deviceId, updateStateAndBroadcast]);
 
   // Lock or Reset specific Table session (DJ Action)
   const lockTableSession = useCallback((tableId: string) => {
@@ -795,8 +833,9 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (channel) {
       channel.postMessage({ type: 'STATE_SYNC', payload: freshState });
     }
+    cloudSync.broadcastState(freshState, deviceId);
     setState(freshState);
-  }, [channel]);
+  }, [channel, deviceId]);
 
   return (
     <KaraokeContext.Provider
