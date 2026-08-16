@@ -6,7 +6,6 @@ import {
   X,
   Crown,
   ShoppingBag,
-  BellRing,
   Award,
   Trash2,
   Edit2,
@@ -19,11 +18,16 @@ import {
   AlertTriangle,
   Receipt,
   TrendingUp,
+  Wallet,
+  Users,
+  Shield,
+  Headphones,
+  Plus,
 } from 'lucide-react';
 import { useKaraoke } from '../../context/KaraokeContext';
 import { LiquidGlassCard } from '../ui/LiquidGlassCard';
 import { LiquidButton } from '../ui/LiquidButton';
-import { BarOrder, CreditNote, Invoice } from '../../types';
+import { BarOrder, CreditNote, Expense, Invoice } from '../../types';
 import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 import { InvoiceModal } from './InvoiceModal';
 
@@ -37,16 +41,19 @@ export const OrdersFinanceDashboard: React.FC = () => {
     issueCreditNote,
     deleteCreditNote,
     deleteInvoice,
+    addExpense,
+    editExpense,
+    deleteExpense,
   } = useKaraoke();
 
   // Active Main Sub-Tab in Finance Dashboard
-  const [activeFinanceTab, setActiveFinanceTab] = useState<'live_orders' | 'monthly_sales' | 'credit_notes' | 'invoices'>('live_orders');
+  const [activeFinanceTab, setActiveFinanceTab] = useState<'live_orders' | 'monthly_sales' | 'credit_notes' | 'invoices' | 'expenses'>('live_orders');
 
   // Live Orders Status Filter
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'delivered' | 'cancelled'>('all');
 
   // Monthly Period Filter
-  const [periodFilter, setPeriodFilter] = useState<'all_month' | 'this_week' | 'today'>('all_month');
+  const [periodFilter, setPeriodFilter] = useState<'all_month' | 'this_week' | 'today'>('today');
 
   // Edit Order State
   const [editingOrder, setEditingOrder] = useState<BarOrder | null>(null);
@@ -65,12 +72,22 @@ export const OrdersFinanceDashboard: React.FC = () => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<BarOrder | null>(null);
 
+  // Expense Modal State
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [editingExpenseItem, setEditingExpenseItem] = useState<Expense | null>(null);
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState<Expense['category']>('meseros');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseRecipient, setExpenseRecipient] = useState('');
+  const [expenseNotes, setExpenseNotes] = useState('');
+
   // View Voucher Modal
   const [viewingVoucher, setViewingVoucher] = useState<CreditNote | null>(null);
 
   const orders = state.orders || [];
   const creditNotes = state.creditNotes || [];
   const invoices = state.invoices || [];
+  const expenses = state.expenses || [];
 
   // Filter orders by date period
   const filteredOrdersByPeriod = useMemo(() => {
@@ -90,6 +107,24 @@ export const OrdersFinanceDashboard: React.FC = () => {
     });
   }, [orders, periodFilter]);
 
+  // Filter expenses by date period
+  const filteredExpensesByPeriod = useMemo(() => {
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const sevenDaysMs = 7 * oneDayMs;
+
+    return expenses.filter((e) => {
+      const expenseTime = e.createdAt;
+      if (periodFilter === 'today') {
+        return now - expenseTime < oneDayMs;
+      }
+      if (periodFilter === 'this_week') {
+        return now - expenseTime < sevenDaysMs;
+      }
+      return true; // all_month
+    });
+  }, [expenses, periodFilter]);
+
   // Financial Metrics of the Period
   const deliveredOrders = filteredOrdersByPeriod.filter((o) => o.status === 'delivered');
   const pendingOrders = orders.filter((o) => o.status === 'pending');
@@ -98,8 +133,26 @@ export const OrdersFinanceDashboard: React.FC = () => {
   const grossRevenue = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const totalRefunds = creditNotes.reduce((sum, c) => sum + c.refundAmount, 0);
   const netRevenue = Math.max(0, grossRevenue - totalRefunds);
-  const pendingRevenue = pendingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
   const avgOrderTicket = deliveredOrders.length > 0 ? Math.round(grossRevenue / deliveredOrders.length) : 0;
+
+  // Expenses Calculation & Net Profit of the Night
+  const totalExpenses = filteredExpensesByPeriod.reduce((sum, e) => sum + e.amount, 0);
+  const netProfit = netRevenue - totalExpenses;
+
+  // Expense breakdown by category
+  const expenseCategoryTotals = useMemo(() => {
+    const totals: Record<Expense['category'], number> = {
+      meseros: 0,
+      guardias: 0,
+      dj: 0,
+      barra_insumos: 0,
+      varios: 0,
+    };
+    filteredExpensesByPeriod.forEach((e) => {
+      totals[e.category] = (totals[e.category] || 0) + e.amount;
+    });
+    return totals;
+  }, [filteredExpensesByPeriod]);
 
   // Tables sorted by spend
   const sortedTables = Object.values(state.tables).sort((a, b) => b.totalSpend - a.totalSpend);
@@ -207,6 +260,68 @@ export const OrdersFinanceDashboard: React.FC = () => {
   const handleOpenInvoiceModalForOrder = (order: BarOrder) => {
     setSelectedOrderForInvoice(order);
     setShowInvoiceModal(true);
+  };
+
+  // Expense Modal Handlers
+  const handleOpenNewExpense = () => {
+    setEditingExpenseItem(null);
+    setExpenseDescription('');
+    setExpenseCategory('meseros');
+    setExpenseAmount('');
+    setExpenseRecipient('');
+    setExpenseNotes('');
+    setShowExpenseModal(true);
+  };
+
+  const handleOpenEditExpense = (item: Expense) => {
+    setEditingExpenseItem(item);
+    setExpenseDescription(item.description);
+    setExpenseCategory(item.category);
+    setExpenseAmount(item.amount.toString());
+    setExpenseRecipient(item.recipientName || '');
+    setExpenseNotes(item.notes || '');
+    setShowExpenseModal(true);
+  };
+
+  const handleSaveExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(expenseAmount) || 0;
+    if (amountNum <= 0) {
+      alert('Por favor ingresa un monto válido mayor a $0.');
+      return;
+    }
+
+    if (!expenseDescription.trim()) {
+      alert('Por favor ingresa una descripción del gasto.');
+      return;
+    }
+
+    if (editingExpenseItem) {
+      editExpense(editingExpenseItem.id, {
+        description: expenseDescription.trim(),
+        category: expenseCategory,
+        amount: amountNum,
+        recipientName: expenseRecipient.trim() || undefined,
+        notes: expenseNotes.trim() || undefined,
+      });
+    } else {
+      addExpense({
+        description: expenseDescription.trim(),
+        category: expenseCategory,
+        amount: amountNum,
+        recipientName: expenseRecipient.trim() || undefined,
+        notes: expenseNotes.trim() || undefined,
+        registeredBy: 'Admin Principal (Kevin)',
+      });
+    }
+
+    setShowExpenseModal(false);
+  };
+
+  const handleDeleteExpenseItem = (item: Expense) => {
+    if (window.confirm(`¿Eliminar el registro de egreso "${item.description}" ($${item.amount})?`)) {
+      deleteExpense(item.id);
+    }
   };
 
   const handlePrintThermalInvoice = (inv: Invoice) => {
@@ -353,10 +468,10 @@ export const OrdersFinanceDashboard: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
             <DollarSign className="w-6 h-6 text-emerald-400" />
-            Ventas, Caja, Facturas & Notas de Crédito
+            Ventas, Caja, Egresos & Balance de la Noche
           </h2>
           <p className="text-xs text-slate-300">
-            Control de comandas en vivo, facturación legal (Consumidor Final / Con Datos) y devoluciones.
+            Libro de ventas, facturación electrónica, control de egresos de personal y ganancia neta.
           </p>
         </div>
 
@@ -375,6 +490,18 @@ export const OrdersFinanceDashboard: React.FC = () => {
             {pendingOrders.length > 0 && (
               <span className="w-2 h-2 rounded-full bg-pastel-pink animate-ping" />
             )}
+          </button>
+
+          <button
+            onClick={() => setActiveFinanceTab('expenses')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all tap-squish flex items-center gap-1.5 whitespace-nowrap ${
+              activeFinanceTab === 'expenses'
+                ? 'bg-amber-400/25 text-amber-200 border border-amber-400/50 shadow-glow-yellow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Egresos & Personal ({expenses.length})</span>
           </button>
 
           <button
@@ -415,51 +542,60 @@ export const OrdersFinanceDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Financial KPI Cards Row */}
+      {/* Top Financial KPI Cards Row (Real Net Profit Calculator) */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
-        {/* Metric 1: Net Real Revenue */}
+        {/* Metric 1: Real Net Sales */}
         <LiquidGlassCard variant="elevated" className="p-4 border-emerald-400/40 shadow-glow-mint">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Ventas Netas Reales</span>
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Ventas Netas</span>
             <DollarSign className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black text-emerald-300 font-mono mt-1">
             ${netRevenue}
           </div>
           <span className="text-[10px] text-emerald-400/80 block">
-            Bruto: ${grossRevenue} • {deliveredOrders.length} entregas
+            Bruto: ${grossRevenue} • NC: -${totalRefunds}
           </span>
         </LiquidGlassCard>
 
-        {/* Metric 2: Credit Notes / Refunds */}
-        <LiquidGlassCard variant="subtle" className="p-4 border-rose-400/30">
+        {/* Metric 2: Total Operational Expenses */}
+        <LiquidGlassCard variant="subtle" className="p-4 border-amber-400/30">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Devoluciones & NC</span>
-            <RotateCcw className="w-4 h-4 text-rose-400" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Total Egresos</span>
+            <Wallet className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-300 font-mono mt-1">
-            -${totalRefunds}
+          <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono mt-1">
+            -${totalExpenses}
           </div>
-          <span className="text-[10px] text-rose-300/80 block">
-            {creditNotes.length} notas de crédito emitidas
+          <span className="text-[10px] text-amber-300/80 block">
+            Meseros, DJ, seguridad e insumos
           </span>
         </LiquidGlassCard>
 
-        {/* Metric 3: Pending Orders in Bar */}
+        {/* Metric 3: Real Net Profit of the Night */}
         <LiquidGlassCard
-          variant={pendingOrders.length > 0 ? 'lavender' : 'subtle'}
-          className={`p-4 ${pendingOrders.length > 0 ? 'border-pastel-pink/50 shadow-glow-pink animate-pulse' : ''}`}
+          variant="elevated"
+          className={`p-4 ${
+            netProfit >= 0
+              ? 'border-emerald-400/50 shadow-glow-mint bg-emerald-500/10'
+              : 'border-rose-500/50 shadow-glow-pink bg-rose-500/10'
+          }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Por Despachar</span>
-            <BellRing className="w-4 h-4 text-pastel-pink" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-300">
+              {periodFilter === 'today' ? '🌟 Ganancia Neta de Hoy' : '🌟 Utilidad Neta Periodo'}
+            </span>
+            <TrendingUp className={`w-4 h-4 ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-1">
-            {pendingOrders.length}{' '}
-            <span className="text-sm font-normal text-slate-400">(${pendingRevenue})</span>
+          <div
+            className={`text-2xl sm:text-3xl font-black font-mono mt-1 ${
+              netProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'
+            }`}
+          >
+            ${netProfit}
           </div>
-          <span className="text-[10px] text-pastel-pink block">
-            {pendingOrders.length > 0 ? '¡Órdenes esperando en barra!' : 'Barra al día'}
+          <span className="text-[10px] text-slate-300 block font-semibold">
+            Ventas Netas (${netRevenue}) - Egresos (${totalExpenses})
           </span>
         </LiquidGlassCard>
 
@@ -467,7 +603,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
         <LiquidGlassCard variant="subtle" className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-semibold text-slate-400">Mesa Líder & Ticket</span>
-            <TrendingUp className="w-4 h-4 text-pastel-sky" />
+            <Crown className="w-4 h-4 text-amber-300" />
           </div>
           <div className="text-lg sm:text-xl font-black text-white truncate mt-1">
             {topSpendingTable?.name || 'N/A'}
@@ -547,7 +683,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
                               </span>
                               {order.isVipQualifying && (
                                 <span className="text-[9px] text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full border border-amber-400/30 font-bold flex items-center gap-1">
-                                  <Crown className="w-3 h-3" /> Combo VIP
+                                  <Crown className="w-3 3" /> Combo VIP
                                 </span>
                               )}
                               {hasCreditNote && (
@@ -772,7 +908,174 @@ export const OrdersFinanceDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* VIEW 2: INVOICES REGISTRY */}
+      {/* VIEW 2: EXPENSES & OPERATIONAL OUTFLOWS */}
+      {activeFinanceTab === 'expenses' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-amber-300" />
+                Egresos Operativos de Caja (Personal, DJ, Seguridad & Insumos)
+              </h3>
+              <p className="text-xs text-slate-400">
+                Registra los pagos de la noche para calcular el balance real y ganancia neta.
+              </p>
+            </div>
+
+            <LiquidButton
+              variant="lavender"
+              size="sm"
+              onClick={handleOpenNewExpense}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              + Registrar Egreso / Pago
+            </LiquidButton>
+          </div>
+
+          {/* Expenses Category Summary Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                <Users className="w-3.5 h-3.5 text-pastel-lavender" />
+                <span>Meseros:</span>
+              </div>
+              <strong className="text-base font-black text-white font-mono">
+                ${expenseCategoryTotals.meseros}
+              </strong>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                <Shield className="w-3.5 h-3.5 text-pastel-sky" />
+                <span>Guardias:</span>
+              </div>
+              <strong className="text-base font-black text-white font-mono">
+                ${expenseCategoryTotals.guardias}
+              </strong>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                <Headphones className="w-3.5 h-3.5 text-pastel-pink" />
+                <span>DJ / Sonido:</span>
+              </div>
+              <strong className="text-base font-black text-white font-mono">
+                ${expenseCategoryTotals.dj}
+              </strong>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                <Wine className="w-3.5 h-3.5 text-pastel-mint" />
+                <span>Insumos Barra:</span>
+              </div>
+              <strong className="text-base font-black text-white font-mono">
+                ${expenseCategoryTotals.barra_insumos}
+              </strong>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 col-span-2 sm:col-span-1">
+              <div className="flex items-center gap-1.5 text-slate-400 mb-1">
+                <Wallet className="w-3.5 h-3.5 text-amber-300" />
+                <span>Cosas Varias:</span>
+              </div>
+              <strong className="text-base font-black text-white font-mono">
+                ${expenseCategoryTotals.varios}
+              </strong>
+            </div>
+          </div>
+
+          {/* Expenses List */}
+          {expenses.length === 0 ? (
+            <LiquidGlassCard variant="subtle" className="p-8 text-center">
+              <Wallet className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-slate-300">
+                No hay egresos registrados aún.
+              </p>
+            </LiquidGlassCard>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {expenses.map((item) => {
+                const categoryLabels: Record<Expense['category'], { label: string; bg: string }> = {
+                  meseros: { label: '🤵 Meseros', bg: 'bg-purple-500/20 text-purple-200 border-purple-400/30' },
+                  guardias: { label: '🛡️ Seguridad', bg: 'bg-blue-500/20 text-blue-200 border-blue-400/30' },
+                  dj: { label: '🎧 DJ & Sonido', bg: 'bg-pink-500/20 text-pink-200 border-pink-400/30' },
+                  barra_insumos: { label: '🧊 Insumos Barra', bg: 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' },
+                  varios: { label: '📦 Cosas Varias', bg: 'bg-amber-500/20 text-amber-200 border-amber-400/30' },
+                };
+
+                const catInfo = categoryLabels[item.category] || categoryLabels.varios;
+
+                return (
+                  <LiquidGlassCard
+                    key={item.id}
+                    variant="elevated"
+                    className="p-4 sm:p-5 flex flex-col justify-between border-amber-400/30"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 pb-2 border-b border-white/10">
+                        <div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${catInfo.bg}`}>
+                            {catInfo.label}
+                          </span>
+                          <h4 className="text-sm font-bold text-white mt-1.5">
+                            {item.description}
+                          </h4>
+                          {item.recipientName && (
+                            <span className="text-[11px] text-pastel-mint block font-medium">
+                              Beneficiario: {item.recipientName}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xl font-black text-amber-300 font-mono block">
+                            -${item.amount}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {item.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="py-2 space-y-1 text-xs">
+                        {item.notes && (
+                          <p className="text-slate-300 italic">
+                            💬 "{item.notes}"
+                          </p>
+                        )}
+                        <span className="text-[10px] text-slate-400 block font-mono">
+                          Fecha: {new Date(item.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-white/10 flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleOpenEditExpense(item)}
+                        className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white"
+                        title="Editar egreso"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteExpenseItem(item)}
+                        className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400"
+                        title="Eliminar egreso"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </LiquidGlassCard>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 3: INVOICES REGISTRY */}
       {activeFinanceTab === 'invoices' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -882,7 +1185,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* VIEW 3: FULL MONTH SALES & AUDIT REPORT */}
+      {/* VIEW 4: FULL MONTH SALES & AUDIT REPORT */}
       {activeFinanceTab === 'monthly_sales' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10">
@@ -891,12 +1194,12 @@ export const OrdersFinanceDashboard: React.FC = () => {
               <span className="text-xs font-bold text-white">Periodo de Ventas:</span>
               <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl">
                 <button
-                  onClick={() => setPeriodFilter('all_month')}
+                  onClick={() => setPeriodFilter('today')}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                    periodFilter === 'all_month' ? 'bg-pastel-lavender text-night-base font-bold' : 'text-slate-400'
+                    periodFilter === 'today' ? 'bg-pastel-lavender text-night-base font-bold' : 'text-slate-400'
                   }`}
                 >
-                  Todo el Mes
+                  Hoy (Turno Noche)
                 </button>
                 <button
                   onClick={() => setPeriodFilter('this_week')}
@@ -907,12 +1210,12 @@ export const OrdersFinanceDashboard: React.FC = () => {
                   Esta Semana
                 </button>
                 <button
-                  onClick={() => setPeriodFilter('today')}
+                  onClick={() => setPeriodFilter('all_month')}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                    periodFilter === 'today' ? 'bg-pastel-lavender text-night-base font-bold' : 'text-slate-400'
+                    periodFilter === 'all_month' ? 'bg-pastel-lavender text-night-base font-bold' : 'text-slate-400'
                   }`}
                 >
-                  Hoy
+                  Todo el Mes
                 </button>
               </div>
             </div>
@@ -1007,7 +1310,7 @@ export const OrdersFinanceDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* VIEW 4: CREDIT NOTES & REFUNDS REGISTRY */}
+      {/* VIEW 5: CREDIT NOTES & REFUNDS REGISTRY */}
       {activeFinanceTab === 'credit_notes' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -1095,6 +1398,132 @@ export const OrdersFinanceDashboard: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* MODAL: EXPENSE / OUTFLOW REGISTRATION MODAL */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-night-base/85 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="w-full max-w-md">
+            <LiquidGlassCard variant="elevated" className="p-5 sm:p-6 relative border-amber-400/40">
+              <button
+                onClick={() => setShowExpenseModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">
+                    {editingExpenseItem ? 'Editar Egreso de Caja' : 'Registrar Egreso / Pago de Turno'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Se descontará de las ventas netas para el cuadre y ganancia de la noche.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveExpense} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Categoría de Egreso:
+                  </label>
+                  <select
+                    value={expenseCategory}
+                    onChange={(e) => setExpenseCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400"
+                  >
+                    <option value="meseros">🤵 Pago de Meseros (Turno Noche)</option>
+                    <option value="guardias">🛡️ Seguridad / Guardias (Control Puerta & VIP)</option>
+                    <option value="dj">🎧 DJ & Sonido / Animación de Tarima</option>
+                    <option value="barra_insumos">🧊 Insumos de Barra (Hielo, Limones, Refrescos)</option>
+                    <option value="varios">📦 Cosas Varias / Descartables / Mantenimiento</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Descripción del Egreso *:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={expenseDescription}
+                    onChange={(e) => setExpenseDescription(e.target.value)}
+                    placeholder="Ej. Pago turno noche 3 meseros / 4 fundas de hielo"
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Monto Pagado ($) *:
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min={0.01}
+                      required
+                      value={expenseAmount}
+                      onChange={(e) => setExpenseAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Beneficiario / Recibe:
+                    </label>
+                    <input
+                      type="text"
+                      value={expenseRecipient}
+                      onChange={(e) => setExpenseRecipient(e.target.value)}
+                      placeholder="Ej. Bryan / DJ Alex"
+                      className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Notas Adicionales / Recibo:
+                  </label>
+                  <input
+                    type="text"
+                    value={expenseNotes}
+                    onChange={(e) => setExpenseNotes(e.target.value)}
+                    placeholder="Ej. Pagado en efectivo de la caja chica"
+                    className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-white text-xs focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <LiquidButton
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowExpenseModal(false)}
+                  >
+                    Cancelar
+                  </LiquidButton>
+                  <LiquidButton
+                    type="submit"
+                    variant="lavender"
+                    size="sm"
+                    icon={<Save className="w-3.5 h-3.5" />}
+                  >
+                    {editingExpenseItem ? 'Guardar Cambios' : 'Registrar Egreso'}
+                  </LiquidButton>
+                </div>
+              </form>
+            </LiquidGlassCard>
+          </div>
         </div>
       )}
 

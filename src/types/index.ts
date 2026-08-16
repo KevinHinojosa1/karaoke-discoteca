@@ -144,6 +144,17 @@ export interface Invoice {
   issuedBy: string;
 }
 
+export interface Expense {
+  id: string; // e.g. "EGR-001"
+  description: string;
+  category: 'meseros' | 'guardias' | 'dj' | 'barra_insumos' | 'varios';
+  amount: number;
+  recipientName?: string;
+  createdAt: number;
+  notes?: string;
+  registeredBy: string;
+}
+
 export interface AppNotification {
   id: string;
   tableId: string;
@@ -169,6 +180,7 @@ export interface KaraokeState {
   orders: BarOrder[];
   creditNotes: CreditNote[];
   invoices: Invoice[];
+  expenses: Expense[];
   prizes: RoulettePrize[];
   notifications: AppNotification[];
   cooldownDefaultMinutes: number;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Crown,
   DollarSign,
@@ -56,7 +56,26 @@ export const TableManager: React.FC = () => {
   const [editExtraSongs, setEditExtraSongs] = useState('0');
   const [editPin, setEditPin] = useState('');
 
+  // Tier Filter and Search State
+  const [tierFilter, setTierFilter] = useState<'all' | 'standard' | 'medium_50' | 'vip_100'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const tablesList = Object.values(state.tables);
+
+  const vipCount = tablesList.filter((t) => t.tier === 'vip_100').length;
+  const mediumCount = tablesList.filter((t) => t.tier === 'medium_50').length;
+  const standardCount = tablesList.filter((t) => t.tier === 'standard').length;
+
+  const filteredTablesList = useMemo(() => {
+    return tablesList.filter((table) => {
+      const matchesTier = tierFilter === 'all' || table.tier === tierFilter;
+      const matchesSearch =
+        !searchQuery.trim() ||
+        table.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        table.id.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesTier && matchesSearch;
+    });
+  }, [tablesList, tierFilter, searchQuery]);
 
   const toggleRevealPin = (tableId: string) => {
     setRevealedPins((prev) => ({
@@ -220,48 +239,129 @@ export const TableManager: React.FC = () => {
         </LiquidGlassCard>
       )}
 
-      {/* Rules Summary Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3.5 text-xs">
-        {/* Tier Standard */}
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+      {/* Interactive Tier Filter Cards & Search Toolbar */}
+      <div className="space-y-3">
+        {/* Tier Filter Clickable Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 text-xs">
+          {/* Filter All */}
+          <button
+            type="button"
+            onClick={() => setTierFilter('all')}
+            className={`p-3 rounded-2xl border text-left transition-all tap-squish flex items-center justify-between ${
+              tierFilter === 'all'
+                ? 'bg-pastel-lavender/25 text-pastel-lavender border-pastel-lavender/50 shadow-glow-lavender'
+                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+            }`}
+          >
             <div>
-              <strong className="text-white block">Estándar (≤ $50)</strong>
-              <span className="text-[10px] text-slate-400">2 canciones • Cooldown 15m</span>
+              <strong className="block text-white text-xs">Todas las Mesas</strong>
+              <span className="text-[10px] text-slate-400">Ver listado completo</span>
             </div>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/10 text-slate-300 font-bold">Baja</span>
+            <span className="text-sm font-black font-mono px-2 py-0.5 rounded-lg bg-white/10 text-white">
+              {tablesList.length}
+            </span>
+          </button>
+
+          {/* Filter Standard (<= $50) */}
+          <button
+            type="button"
+            onClick={() => setTierFilter('standard')}
+            className={`p-3 rounded-2xl border text-left transition-all tap-squish flex items-center justify-between ${
+              tierFilter === 'standard'
+                ? 'bg-slate-700/60 text-white border-white/40 shadow-glow-mint'
+                : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+            }`}
+          >
+            <div className="min-w-0">
+              <strong className="block text-white text-xs truncate">Estándar (≤ $50)</strong>
+              <span className="text-[10px] text-slate-400">2 canc • 15m cd</span>
+            </div>
+            <span className="text-sm font-black font-mono px-2 py-0.5 rounded-lg bg-white/10 text-slate-300">
+              {standardCount}
+            </span>
+          </button>
+
+          {/* Filter Medium ($51 - $100) */}
+          <button
+            type="button"
+            onClick={() => setTierFilter('medium_50')}
+            className={`p-3 rounded-2xl border text-left transition-all tap-squish flex items-center justify-between ${
+              tierFilter === 'medium_50'
+                ? 'bg-purple-500/30 text-purple-200 border-purple-400/50 shadow-glow-lavender'
+                : 'bg-purple-500/10 text-purple-200 border-purple-400/20 hover:bg-purple-500/20'
+            }`}
+          >
+            <div className="min-w-0">
+              <strong className="block text-purple-200 text-xs truncate">Medio ($51-$100)</strong>
+              <span className="text-[10px] text-purple-300/80">3 canc • Sin cd 💎</span>
+            </div>
+            <span className="text-sm font-black font-mono px-2 py-0.5 rounded-lg bg-purple-500/20 text-purple-200">
+              {mediumCount}
+            </span>
+          </button>
+
+          {/* Filter VIP Gold (> $100) */}
+          <button
+            type="button"
+            onClick={() => setTierFilter('vip_100')}
+            className={`p-3 rounded-2xl border text-left transition-all tap-squish flex items-center justify-between ${
+              tierFilter === 'vip_100'
+                ? 'bg-amber-400/25 text-amber-200 border-amber-400/60 shadow-glow-yellow'
+                : 'bg-amber-400/10 text-amber-200 border-amber-400/25 hover:bg-amber-400/20'
+            }`}
+          >
+            <div className="min-w-0 flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
+              <div>
+                <strong className="block text-amber-200 text-xs truncate">VIP Gold (&gt;$100)</strong>
+                <span className="text-[10px] text-amber-300/80">5 canc • VIP ⭐</span>
+              </div>
+            </div>
+            <span className="text-sm font-black font-mono px-2 py-0.5 rounded-lg bg-amber-400/20 text-amber-300">
+              {vipCount}
+            </span>
+          </button>
         </div>
 
-        {/* Tier Medium */}
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-purple-500/10 border border-purple-400/20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-pastel-lavender" />
-            <div>
-              <strong className="text-purple-200 block">Medio ($51 - $100)</strong>
-              <span className="text-[10px] text-slate-300">3 canciones • Sin espera</span>
-            </div>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-200 font-bold">Media 💎</span>
-        </div>
-
-        {/* Tier VIP Gold */}
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-between shadow-glow-yellow">
-          <div className="flex items-center gap-2">
-            <Crown className="w-3.5 h-3.5 text-amber-300" />
-            <div>
-              <strong className="text-amber-200 block">VIP Gold (&gt; $100)</strong>
-              <span className="text-[10px] text-slate-300">5 canciones • Prioridad Alta</span>
-            </div>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-200 font-bold">VIP ⭐</span>
+        {/* Quick Search and Active Filter Indicator */}
+        <div className="flex items-center justify-between gap-3 p-2 rounded-2xl bg-white/5 border border-white/10">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="🔍 Buscar mesa por nombre o ID (ej. Mesa 01, VIP-02)..."
+            className="w-full px-3 py-1.5 rounded-xl bg-transparent text-white text-xs placeholder:text-slate-400 focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="p-1 text-slate-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Grid of Tables */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        {tablesList.map((table) => {
+      {filteredTablesList.length === 0 ? (
+        <LiquidGlassCard variant="subtle" className="p-8 text-center">
+          <p className="text-sm font-semibold text-slate-300">
+            No se encontraron mesas con el filtro seleccionado ({tierFilter !== 'all' ? tierFilter : 'búsqueda'}).
+          </p>
+          <button
+            onClick={() => {
+              setTierFilter('all');
+              setSearchQuery('');
+            }}
+            className="mt-3 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold"
+          >
+            Restablecer Filtros
+          </button>
+        </LiquidGlassCard>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {filteredTablesList.map((table) => {
           const config = TIER_CONFIGS[table.tier];
           const totalQuota = config.maxSongs + table.extraQuotaBonus;
           const quotaUsed = table.quotaUsed;
@@ -498,6 +598,7 @@ export const TableManager: React.FC = () => {
           );
         })}
       </div>
+    )}
 
       {/* Edit Table Modal */}
       {selectedTableForEdit && (

@@ -45,6 +45,39 @@ export const App: React.FC = () => {
   const [showTableInfoModal, setShowTableInfoModal] = useState(false);
   const [isSpectatorMode, setIsSpectatorMode] = useState(false);
 
+  // Dynamic Liquid Glass Dock Pointer Coordinates
+  const dockRef = useRef<HTMLDivElement | null>(null);
+  const [dockPointer, setDockPointer] = useState<{ x: number; y: number; isHovered: boolean }>({
+    x: 50,
+    y: 50,
+    isHovered: false,
+  });
+
+  const handleDockMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dockRef.current) return;
+    const rect = dockRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDockPointer({ x, y, isHovered: true });
+    dockRef.current.style.setProperty('--dock-x', `${x}px`);
+    dockRef.current.style.setProperty('--dock-y', `${y}px`);
+  };
+
+  const handleDockTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!dockRef.current || e.touches.length === 0) return;
+    const rect = dockRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    setDockPointer({ x, y, isHovered: true });
+    dockRef.current.style.setProperty('--dock-x', `${x}px`);
+    dockRef.current.style.setProperty('--dock-y', `${y}px`);
+  };
+
+  const handleDockPointerLeave = () => {
+    setDockPointer((prev) => ({ ...prev, isHovered: false }));
+  };
+
   // Hidden 5-tap gesture on footer copyright for DJ
   const footerTapCount = useRef(0);
   const footerTapTimer = useRef<NodeJS.Timeout | null>(null);
@@ -225,24 +258,37 @@ export const App: React.FC = () => {
         </span>
       </footer>
 
-      {/* Bottom Floating Navigation Bar (WhatsApp style Floating Capsule Dock in Liquid Glass) */}
+      {/* Bottom Floating Navigation Bar (WhatsApp style Floating Capsule Dock in Dynamic Liquid Glass) */}
       <nav className="fixed bottom-3 sm:bottom-5 inset-x-0 z-40 flex justify-center pointer-events-none px-3 sm:px-4">
-        <div className="pointer-events-auto flex items-center justify-between sm:justify-around gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full whatsapp-liquid-dock max-w-sm sm:max-w-md w-full">
+        <div
+          ref={dockRef}
+          onMouseMove={handleDockMouseMove}
+          onTouchMove={handleDockTouchMove}
+          onMouseLeave={handleDockPointerLeave}
+          onTouchEnd={handleDockPointerLeave}
+          className="pointer-events-auto flex items-center justify-between sm:justify-around gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full whatsapp-liquid-dock max-w-sm sm:max-w-md w-full relative"
+        >
+          {/* Dynamic Specular Lens Spotlight (Follows cursor on PC and finger on Mobile) */}
+          <div
+            className="liquid-dock-lens transition-opacity duration-300"
+            style={{ opacity: dockPointer.isHovered ? 1 : 0 }}
+          />
+
           {navItems.map((item) => {
             const isActive = customerTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setCustomerTab(item.id as any)}
-                className={`relative flex flex-col items-center justify-center py-1 sm:py-1.5 px-3 sm:px-4 rounded-full transition-all duration-300 select-none tap-squish flex-1 ${
+                className={`relative flex flex-col items-center justify-center py-1 sm:py-1.5 px-3 sm:px-4 rounded-full transition-all duration-300 select-none tap-squish flex-1 z-10 ${
                   isActive
                     ? 'text-white scale-105'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {/* Active Capsule Glass Background (WhatsApp Floating Pill) */}
                 {isActive && (
-                  <span className="absolute inset-0 bg-white/15 backdrop-blur-md rounded-full border border-white/20 shadow-inner -z-10 animate-in zoom-in-95 duration-200" />
+                  <span className="absolute inset-0 liquid-glass-pill-active rounded-full -z-10 animate-in zoom-in-95 duration-200" />
                 )}
 
                 <div className="relative">

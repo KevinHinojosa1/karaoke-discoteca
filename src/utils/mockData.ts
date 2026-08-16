@@ -533,6 +533,59 @@ export const INITIAL_INVOICES: import('../types').Invoice[] = [
   },
 ];
 
+export const INITIAL_EXPENSES: import('../types').Expense[] = [
+  {
+    id: 'EGR-001',
+    description: 'Pago Turno Noche - Meseros (3 personas)',
+    category: 'meseros',
+    amount: 75,
+    recipientName: 'Carlos, Bryan y María (Meseros)',
+    createdAt: Date.now() - 1000 * 60 * 60 * 3,
+    notes: '$25 por mesero turno completo',
+    registeredBy: 'Admin Principal (Kevin)',
+  },
+  {
+    id: 'EGR-002',
+    description: 'Pago Seguridad & Control de Acceso (2 Guardias)',
+    category: 'guardias',
+    amount: 70,
+    recipientName: 'Guardias de Seguridad (Puerta & VIP)',
+    createdAt: Date.now() - 1000 * 60 * 60 * 3.5,
+    notes: '$35 por guardia turno nocturno',
+    registeredBy: 'Admin Principal (Kevin)',
+  },
+  {
+    id: 'EGR-003',
+    description: 'Honorarios DJ / Animador de Karaoke',
+    category: 'dj',
+    amount: 60,
+    recipientName: 'DJ Alex / Animación de Tarima',
+    createdAt: Date.now() - 1000 * 60 * 60 * 4,
+    notes: 'Control de consolas, sonido y micrófonos',
+    registeredBy: 'Admin Principal (Kevin)',
+  },
+  {
+    id: 'EGR-004',
+    description: 'Compra de Hielo & Limones para Barra',
+    category: 'barra_insumos',
+    amount: 22,
+    recipientName: 'Distribuidora San Mateo',
+    createdAt: Date.now() - 1000 * 60 * 60 * 5,
+    notes: '4 fundas de hielo + 1 caja de limones sutiles',
+    registeredBy: 'Bartender Principal',
+  },
+  {
+    id: 'EGR-005',
+    description: 'Servilletas, vasos descartables & sorbetes biodegradables',
+    category: 'varios',
+    amount: 18,
+    recipientName: 'Insumos Express',
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+    notes: 'Reposición de descartables',
+    registeredBy: 'Admin Principal (Kevin)',
+  },
+];
+
 export const INITIAL_PRIZES: RoulettePrize[] = [
   {
     id: 'prize-time-10',

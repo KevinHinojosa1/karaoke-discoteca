@@ -4,6 +4,7 @@ import {
   BarOrder,
   ConsumptionTier,
   CreditNote,
+  Expense,
   Invoice,
   KaraokeState,
   RoulettePrize,
@@ -14,6 +15,7 @@ import {
 import {
   INITIAL_CREDIT_NOTES,
   INITIAL_CURRENT_SONG,
+  INITIAL_EXPENSES,
   INITIAL_INVOICES,
   INITIAL_ORDERS,
   INITIAL_PRIZES,
@@ -58,6 +60,9 @@ interface KaraokeContextType {
   deleteCreditNote: (creditNoteId: string) => void;
   generateInvoice: (invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => { success: boolean; invoiceId: string };
   deleteInvoice: (invoiceId: string) => void;
+  addExpense: (expenseData: Omit<Expense, 'id' | 'createdAt'>) => { success: boolean; expenseId: string };
+  editExpense: (expenseId: string, updatedData: Partial<Expense>) => void;
+  deleteExpense: (expenseId: string) => void;
   setTableTier: (tableId: string, tier: ConsumptionTier, totalSpend?: number) => void;
   editTable: (tableId: string, updatedData: Partial<Table>) => void;
   deleteTable: (tableId: string) => void;
@@ -73,7 +78,7 @@ interface KaraokeContextType {
   resetAllData: () => void;
 }
 
-const STORAGE_KEY = 'karaoke_discoteca_state_v10';
+const STORAGE_KEY = 'karaoke_discoteca_state_v11';
 const BROADCAST_NAME = 'karaoke_realtime_broadcast';
 
 const KaraokeContext = createContext<KaraokeContextType | null>(null);
@@ -99,6 +104,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           orders: parsed.orders || INITIAL_ORDERS,
           creditNotes: parsed.creditNotes || INITIAL_CREDIT_NOTES,
           invoices: parsed.invoices || INITIAL_INVOICES,
+          expenses: parsed.expenses || INITIAL_EXPENSES,
           currentTableId: initialTableParam in parsed.tables ? initialTableParam : 'M-04',
           activeView: urlParams.get('view') === 'admin' ? 'admin' : urlParams.get('view') === 'stage' ? 'stage' : 'user',
           deviceAuthorizations: parsed.deviceAuthorizations || initialAuths,
@@ -116,6 +122,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       orders: INITIAL_ORDERS,
       creditNotes: INITIAL_CREDIT_NOTES,
       invoices: INITIAL_INVOICES,
+      expenses: INITIAL_EXPENSES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -192,6 +199,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             orders: incoming.orders || prev.orders,
             creditNotes: incoming.creditNotes || prev.creditNotes,
             invoices: incoming.invoices || prev.invoices,
+            expenses: incoming.expenses || prev.expenses,
             prizes: incoming.prizes || prev.prizes,
             notifications: incoming.notifications || prev.notifications,
           };
@@ -937,6 +945,41 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   }, [updateStateAndBroadcast]);
 
+  // Add Operational Expense (Pago de meseros, guardias, dj, insumos)
+  const addExpense = useCallback((expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    const count = (state.expenses || []).length + 1;
+    const expenseId = `EGR-${count.toString().padStart(3, '0')}`;
+
+    const newExpense: Expense = {
+      ...expenseData,
+      id: expenseId,
+      createdAt: Date.now(),
+    };
+
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      expenses: [newExpense, ...(prev.expenses || [])],
+    }));
+
+    return { success: true, expenseId };
+  }, [state.expenses, updateStateAndBroadcast]);
+
+  // Edit Operational Expense
+  const editExpense = useCallback((expenseId: string, updatedData: Partial<Expense>) => {
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      expenses: (prev.expenses || []).map((e) => (e.id === expenseId ? { ...e, ...updatedData } : e)),
+    }));
+  }, [updateStateAndBroadcast]);
+
+  // Delete Operational Expense
+  const deleteExpense = useCallback((expenseId: string) => {
+    updateStateAndBroadcast((prev) => ({
+      ...prev,
+      expenses: (prev.expenses || []).filter((e) => e.id !== expenseId),
+    }));
+  }, [updateStateAndBroadcast]);
+
   // Set Table Tier / Spend (DJ action)
   const setTableTier = useCallback((
     tableId: string,
@@ -1327,6 +1370,7 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       orders: INITIAL_ORDERS,
       creditNotes: INITIAL_CREDIT_NOTES,
       invoices: INITIAL_INVOICES,
+      expenses: INITIAL_EXPENSES,
       prizes: INITIAL_PRIZES,
       notifications: [],
       cooldownDefaultMinutes: 15,
@@ -1377,6 +1421,9 @@ export const KaraokeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteCreditNote,
         generateInvoice,
         deleteInvoice,
+        addExpense,
+        editExpense,
+        deleteExpense,
         setTableTier,
         editTable,
         deleteTable,

@@ -17,6 +17,7 @@ import { LiquidButton } from '../ui/LiquidButton';
 import { TIER_CONFIGS } from '../../utils/queueAlgorithm';
 import { RewardsRoulette } from './RewardsRoulette';
 import { OrderTrackingBanner } from '../portal/OrderTrackingBanner';
+import { AnimatedKaraokeMascot } from '../ui/AnimatedKaraokeMascot';
 
 interface UserTrackingScreenProps {
   onRequestNewSong: () => void;
@@ -103,8 +104,17 @@ export const UserTrackingScreen: React.FC<UserTrackingScreenProps> = ({
           </h3>
           <p className="text-xs text-slate-300 font-medium">{primarySong.artist}</p>
 
+          {/* Animated Karaoke Mascot in Waiting Queue State */}
+          <div className="my-2">
+            <AnimatedKaraokeMascot
+              status="waiting_queue"
+              position={positionInQueue}
+              estimatedWaitMin={estimatedWaitMin}
+            />
+          </div>
+
           {/* Quick Metrics Circle & Time Box */}
-          <div className="grid grid-cols-2 gap-3 my-5">
+          <div className="grid grid-cols-2 gap-3 my-4">
             {/* Position Box */}
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center">
               <span className="text-xs text-slate-400 font-medium">Posición en Cola</span>
@@ -150,11 +160,9 @@ export const UserTrackingScreen: React.FC<UserTrackingScreenProps> = ({
           </div>
         </LiquidGlassCard>
       ) : (
-        <LiquidGlassCard variant="elevated" className="p-6 text-center">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-pastel-lavender/20 border border-pastel-lavender/30 flex items-center justify-center text-pastel-lavender mb-3">
-            <Mic2 className="w-7 h-7" />
-          </div>
-          <h3 className="text-lg font-bold text-white">No tienes canciones en cola</h3>
+        <LiquidGlassCard variant="elevated" className="p-5 sm:p-6 text-center">
+          <AnimatedKaraokeMascot status="idle" />
+          <h3 className="text-lg font-bold text-white mt-1">No tienes canciones en cola</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
             Pide tu canción favorita ahora mismo para cantar en el escenario del club.
           </p>
